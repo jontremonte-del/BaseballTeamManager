@@ -6,7 +6,7 @@
 <title>Diamond Manager</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <style>
-:root {
+:root{
   --dirt:#c8803a;--dirt-light:#e8a55a;
   --grass:#2d6a2d;--grass-light:#3a8a3a;--grass-mid:#245224;
   --chalk:#f5f0e8;
@@ -15,6 +15,7 @@
   --text:#e6edf3;--muted:#8b949e;--muted2:#6a7480;
   --bench:#c94040;--bench-light:#e05555;
   --accent:#f0c040;--accent2:#58a6ff;--accent3:#56d364;
+  --admin:#ff6b35;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'DM Sans',sans-serif;background:var(--night);color:var(--text);min-height:100vh;overflow-x:hidden}
@@ -33,9 +34,11 @@ header .sub{font-size:.7rem;color:var(--dirt-light);letter-spacing:1.5px;text-tr
 
 nav{display:flex;background:var(--panel);border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none}
 nav::-webkit-scrollbar{display:none}
-nav button{flex:1;min-width:100px;padding:12px 8px;background:none;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:.75rem;font-weight:600;letter-spacing:.3px;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;text-transform:uppercase;white-space:nowrap}
+nav button{flex:1;min-width:90px;padding:12px 6px;background:none;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:.72rem;font-weight:600;letter-spacing:.3px;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;text-transform:uppercase;white-space:nowrap}
 nav button.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(240,192,64,.06)}
 nav button:hover:not(.active){color:var(--text)}
+nav button.admin-btn{color:var(--admin)}
+nav button.admin-btn.active{color:var(--admin);border-bottom-color:var(--admin);background:rgba(255,107,53,.06)}
 
 main{max-width:1000px;margin:0 auto;padding:20px 14px}
 .page{display:none}.page.active{display:block}
@@ -45,7 +48,8 @@ main{max-width:1000px;margin:0 auto;padding:20px 14px}
 .lbl{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;font-weight:600;margin-bottom:3px}
 
 .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:16px}
-hr{border:none;border-top:1px solid var(--border);margin:12px 0}
+.card-danger{border-color:rgba(201,64,64,.4);background:rgba(201,64,64,.04)}
+hr{border:none;border-top:1px solid var(--border);margin:14px 0}
 
 input,select,textarea{background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.88rem;padding:7px 11px;outline:none;transition:border .2s}
 input:focus,select:focus{border-color:var(--accent)}
@@ -57,8 +61,10 @@ select option{background:var(--panel2)}
 .btn-accent{background:var(--accent);color:var(--night)}.btn-accent:hover{opacity:.85}
 .btn-blue{background:var(--accent2);color:#fff}.btn-blue:hover{opacity:.85}
 .btn-purple{background:#7c4dff;color:#fff}.btn-purple:hover{background:#9c6fff}
+.btn-orange{background:var(--admin);color:#fff}.btn-orange:hover{opacity:.85}
 .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}.btn-ghost:hover{color:var(--text);border-color:var(--muted)}
 .btn-danger{background:transparent;color:var(--bench);border:1px solid var(--bench);padding:4px 9px;font-size:.74rem}.btn-danger:hover{background:var(--bench);color:#fff}
+.btn-danger-solid{background:var(--bench);color:#fff}.btn-danger-solid:hover{background:var(--bench-light)}
 .btn-sm{padding:5px 11px;font-size:.76rem}
 .btn-xs{padding:3px 8px;font-size:.71rem}
 .btn-icon{background:none;border:none;cursor:pointer;font-size:.95rem;padding:4px 6px;border-radius:4px;transition:background .15s;color:var(--muted)}.btn-icon:hover{background:var(--panel3);color:var(--text)}
@@ -82,11 +88,12 @@ select option{background:var(--panel2)}
 .alert-warn{background:rgba(240,192,64,.1);border-left:3px solid var(--accent);color:var(--accent)}
 .alert-info{background:rgba(88,166,255,.08);border-left:3px solid var(--accent2);color:var(--accent2)}
 .alert-good{background:rgba(86,211,100,.08);border-left:3px solid var(--accent3);color:var(--accent3)}
+.alert-danger{background:rgba(201,64,64,.1);border-left:3px solid var(--bench);color:var(--bench-light)}
 
 .empty{text-align:center;padding:36px;color:var(--muted);font-size:.88rem}
 .empty .icon{font-size:2.2rem;margin-bottom:8px}
 
-/* ── ROSTER ── */
+/* ROSTER */
 .player-row{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:7px;transition:border-color .2s}
 .player-row:hover{border-color:var(--accent2)}
 .player-row-main{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
@@ -96,24 +103,22 @@ select option{background:var(--panel2)}
 .player-edit-panel{display:none;border-top:1px solid var(--border);margin-top:10px;padding-top:12px}
 .player-edit-panel.open{display:block}
 .pos-pref-grid{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-.pos-pref-btn{background:var(--panel3);border:1px solid var(--border);border-radius:5px;color:var(--muted);font-size:.71rem;font-weight:600;padding:5px 10px;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif;position:relative}
+.pos-pref-btn{background:var(--panel3);border:1px solid var(--border);border-radius:5px;color:var(--muted);font-size:.71rem;font-weight:600;padding:5px 10px;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif}
 .pos-pref-btn:hover{border-color:var(--muted);color:var(--text)}
 .pos-pref-btn.rank1{background:rgba(240,192,64,.2);border-color:var(--accent);color:var(--accent)}
 .pos-pref-btn.rank2{background:rgba(88,166,255,.15);border-color:var(--accent2);color:var(--accent2)}
 .pos-pref-btn.rank3{background:rgba(86,211,100,.12);border-color:var(--accent3);color:var(--accent3)}
 .rank-badge{display:inline-block;font-size:.6rem;font-weight:900;margin-left:4px;opacity:.8}
 
-/* ── POSITIONS PAGE ── */
+/* POSITIONS PAGE */
 .inning-tabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
 .inning-tab{background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:.76rem;font-weight:600;padding:6px 12px;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif;white-space:nowrap}
 .inning-tab.active{background:rgba(240,192,64,.12);border-color:var(--accent);color:var(--accent)}
 .inning-tab.all-tab{border-style:dashed}
-
 .pos-list-row{display:grid;grid-template-columns:170px 1fr;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:9px 14px;margin-bottom:6px}
 .pos-list-row.bench-row{border-color:rgba(201,64,64,.35);background:rgba(201,64,64,.05)}
 .pos-lbl{font-family:'Bebas Neue',sans-serif;font-size:.93rem;letter-spacing:1px;color:var(--dirt-light)}
 .bench-lbl{color:var(--bench-light)}
-
 .overflow-x{overflow-x:auto}
 .ai-table{width:100%;border-collapse:collapse;font-size:.79rem;white-space:nowrap}
 .ai-table th{padding:8px 10px;background:var(--panel3);color:var(--muted);font-size:.67rem;text-transform:uppercase;letter-spacing:.7px;border-bottom:1px solid var(--border);text-align:left}
@@ -121,7 +126,6 @@ select option{background:var(--panel2)}
 .ai-table tr:hover td{background:rgba(255,255,255,.02)}
 .cell-bench{background:rgba(201,64,64,.12);border-radius:4px;color:var(--bench-light);padding:2px 7px;font-size:.71rem;font-weight:700;display:inline-block}
 .cell-pos{color:var(--grass-light);font-weight:500}
-
 .field-wrap{position:relative;width:100%;max-width:620px;margin:0 auto}
 .field-svg{width:100%;display:block}
 .field-overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
@@ -129,17 +133,13 @@ select option{background:var(--panel2)}
 .fp-badge{display:inline-block;background:rgba(20,50,20,.85);border:2px solid var(--grass-light);border-radius:7px;padding:3px 8px;font-size:.7rem;font-weight:700;color:#fff;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.55);line-height:1.35}
 .fp-badge.empty-fp{background:rgba(20,30,40,.75);border-color:var(--border2);color:var(--muted2);font-weight:400}
 .fp-lbl{font-size:.56rem;color:rgba(255,255,255,.4);letter-spacing:.5px;text-transform:uppercase;margin-top:1px}
-
-/* edit banner */
 .edit-banner{display:none;background:rgba(88,166,255,.1);border:1px solid var(--accent2);border-radius:8px;padding:10px 14px;margin-bottom:14px;align-items:center;gap:10px;flex-wrap:wrap}
 .edit-banner.visible{display:flex}
 .edit-banner-lbl{font-size:.82rem;color:var(--accent2);font-weight:600;flex:1}
-
-/* randomize result log */
 .rng-log{background:var(--panel3);border:1px solid var(--border);border-radius:7px;padding:10px 14px;font-size:.78rem;color:var(--muted);margin-top:12px;line-height:1.8;display:none}
 .rng-log.visible{display:block}
 
-/* ── BATTING ── */
+/* BATTING */
 .batter-row{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:9px 14px;margin-bottom:6px;transition:all .2s;cursor:grab}
 .batter-row:active{cursor:grabbing;opacity:.75}
 .batter-row.next-up{border-color:var(--accent);background:rgba(240,192,64,.07)}
@@ -150,7 +150,7 @@ select option{background:var(--panel2)}
 .batter-pos-tag{font-size:.71rem;color:var(--muted);margin-top:1px}
 .next-pill{background:var(--accent);color:var(--night);font-size:.65rem;font-weight:800;padding:2px 9px;border-radius:20px;letter-spacing:.4px;flex-shrink:0}
 
-/* ── STATS ── */
+/* STATS */
 .stats-table{width:100%;border-collapse:collapse;font-size:.84rem}
 .stats-table th{text-align:left;padding:9px 12px;color:var(--muted);font-size:.69rem;text-transform:uppercase;letter-spacing:.7px;border-bottom:1px solid var(--border);white-space:nowrap}
 .stats-table td{padding:9px 12px;border-bottom:1px solid rgba(48,54,61,.4);vertical-align:middle}
@@ -158,13 +158,21 @@ select option{background:var(--panel2)}
 .bench-bar-wrap{background:var(--panel3);border-radius:20px;height:7px;width:88px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:8px}
 .bench-bar{height:100%;border-radius:20px;background:linear-gradient(to right,var(--bench),var(--bench-light));transition:width .4s}
 
-/* ── HISTORY ── */
+/* HISTORY */
 .game-hcard{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:10px}
 .game-date-tag{background:var(--grass);color:var(--chalk);font-size:.69rem;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.4px}
 .mini-tag{background:var(--panel);border:1px solid var(--border);border-radius:5px;font-size:.72rem;padding:3px 8px;color:var(--muted);display:inline-block;margin:2px}
 .mini-tag b{color:var(--text)}
 
-/* ── MODALS ── */
+/* ADMIN */
+.season-card{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.season-card:hover{border-color:var(--accent2)}
+.season-meta{flex:1}
+.season-name{font-weight:700;font-size:.95rem}
+.season-detail{font-size:.75rem;color:var(--muted);margin-top:2px}
+.season-badge{background:var(--panel3);border:1px solid var(--border);border-radius:4px;font-size:.68rem;padding:2px 7px;color:var(--muted2)}
+
+/* MODAL */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;align-items:center;justify-content:center;padding:16px}
 .modal-overlay.open{display:flex}
 .modal{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:22px;max-width:560px;width:100%;max-height:88vh;display:flex;flex-direction:column;gap:14px}
@@ -207,6 +215,7 @@ select option{background:var(--panel2)}
   <button onclick="showPage('batting',this)">🏏 Batting</button>
   <button onclick="showPage('stats',this)">📊 Stats</button>
   <button onclick="showPage('history',this)">📋 History</button>
+  <button class="admin-btn" onclick="showPage('admin',this)">⚙️ Admin</button>
 </nav>
 
 <main>
@@ -327,17 +336,52 @@ select option{background:var(--panel2)}
   <div class="section-title">Game History</div>
   <div id="history-list"></div>
   <div class="empty" id="history-empty"><div class="icon">📋</div>No games saved yet.</div>
+</div>
 
-  <div class="card" style="margin-top:24px">
-    <div class="section-title" style="font-size:1rem;margin-bottom:14px">🔥 Firebase Setup Instructions</div>
-    <p style="font-size:.83rem;color:var(--muted);margin-bottom:16px">Follow these steps once to enable cloud sync so coaches can view the lineup on any device.</p>
-    <div class="setup-step"><span class="step-num">1</span><div class="step-body"><b>Create a free Firebase project</b><br>Go to <b>console.firebase.google.com</b> → <b>Add project</b> → name it <b>diamond-manager</b> → Create.</div></div>
-    <div class="setup-step"><span class="step-num">2</span><div class="step-body"><b>Add a Web App</b><br>Click the <b>&lt;/&gt;</b> web icon → nickname <b>diamond-manager-web</b> → Register. Copy the <code>firebaseConfig</code> object shown.</div></div>
-    <div class="setup-step"><span class="step-num">3</span><div class="step-body"><b>Enable Realtime Database</b><br>Left sidebar → <b>Build → Realtime Database</b> → Create database → <b>Start in test mode</b> → Enable. Copy the database URL (<code>https://…firebaseio.com</code>).</div></div>
-    <div class="setup-step"><span class="step-num">4</span><div class="step-body"><b>Paste config into code</b><br>Open <code>index.html</code> on GitHub. Find <code>FIREBASE_CONFIG</code> near the top and replace each <code>PASTE_YOUR_…_HERE</code> value. Ensure <code>databaseURL</code> is included from step 3.</div></div>
-    <div class="setup-step"><span class="step-num">5</span><div class="step-body"><b>Commit &amp; deploy</b><br>Commit in GitHub → Vercel redeploys in ~30s → sync bar turns <b style="color:var(--accent3)">green</b>.</div></div>
-    <div class="setup-step"><span class="step-num">6</span><div class="step-body"><b>Share with coaches</b><br>Send your Vercel URL. All devices see the same data in real time. No login needed.</div></div>
-    <div class="alert alert-warn" style="margin-top:4px">⚠️ Test mode expires in 30 days. Before expiry go to Realtime Database → Rules and set <code>"read": true, "write": true</code>.</div>
+<!-- ═══ ADMIN ═══ -->
+<div id="page-admin" class="page">
+  <div class="section-title">Admin</div>
+
+  <!-- Current season info -->
+  <div class="card">
+    <div class="section-title" style="font-size:1rem;margin-bottom:10px">📊 Current Season</div>
+    <div id="admin-current-info" style="font-size:.85rem;color:var(--muted);margin-bottom:14px"></div>
+
+    <div class="alert alert-danger" style="margin-bottom:14px">
+      ⚠️ <b>Start New Season</b> — This will archive the current season and clear all roster, game, and stats data so you can start fresh. The archive can be reloaded at any time below.
+    </div>
+    <div class="form-row" style="margin-bottom:0;gap:10px;flex-wrap:wrap">
+      <div class="form-group" style="flex:1;min-width:200px">
+        <div class="lbl">Season Name (for the archive)</div>
+        <input type="text" id="season-name-input" placeholder="e.g. Spring 2025" style="width:100%">
+      </div>
+      <button class="btn btn-danger-solid" onclick="startNewSeason()" style="align-self:flex-end">🗄️ Archive &amp; Start New Season</button>
+    </div>
+  </div>
+
+  <!-- Archived seasons -->
+  <div class="card">
+    <div class="section-title" style="font-size:1rem;margin-bottom:10px">🗃️ Archived Seasons</div>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">Up to 10 seasons are kept. Oldest are removed automatically. Loading a season replaces current data.</p>
+    <div id="archived-seasons-list"></div>
+    <div class="empty" id="archived-empty"><div class="icon">🗃️</div>No archived seasons yet.</div>
+  </div>
+
+  <!-- Firebase status + setup -->
+  <div class="card">
+    <div class="section-title" style="font-size:1rem;margin-bottom:10px">🔥 Firebase Status</div>
+    <div id="admin-firebase-status" style="font-size:.85rem;margin-bottom:14px"></div>
+    <details style="font-size:.82rem;color:var(--muted)">
+      <summary style="cursor:pointer;color:var(--accent2);font-weight:600;margin-bottom:10px">Show setup instructions</summary>
+      <div style="margin-top:12px">
+        <div class="setup-step"><span class="step-num">1</span><div class="step-body"><b>Create a free Firebase project</b><br>Go to <b>console.firebase.google.com</b> → <b>Add project</b> → name it <b>diamond-manager</b> → Create.</div></div>
+        <div class="setup-step"><span class="step-num">2</span><div class="step-body"><b>Add a Web App</b><br>Click the <b>&lt;/&gt;</b> web icon → nickname <b>diamond-manager-web</b> → Register. Copy the <code>firebaseConfig</code> object shown.</div></div>
+        <div class="setup-step"><span class="step-num">3</span><div class="step-body"><b>Enable Realtime Database</b><br>Left sidebar → <b>Build → Realtime Database</b> → Create database → <b>Start in test mode</b> → Enable. Copy the database URL.</div></div>
+        <div class="setup-step"><span class="step-num">4</span><div class="step-body"><b>Paste config into code</b><br>Open <code>index.html</code> on GitHub. Find <code>FIREBASE_CONFIG</code> near the top and replace each placeholder value.</div></div>
+        <div class="setup-step"><span class="step-num">5</span><div class="step-body"><b>Commit &amp; deploy</b><br>Commit in GitHub → Vercel redeploys → sync bar turns <b style="color:var(--accent3)">green</b>.</div></div>
+        <div class="alert alert-warn" style="margin-top:4px">⚠️ Test mode expires in 30 days. Go to Realtime Database → Rules and set <code>"read": true, "write": true</code> before expiry.</div>
+      </div>
+    </details>
   </div>
 </div>
 
@@ -355,56 +399,66 @@ select option{background:var(--panel2)}
   </div>
 </div>
 
-<!-- Firebase compat SDK — regular scripts, no module/timing issues -->
+<!-- Firebase compat SDK (synchronous regular scripts — no module timing issues) -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
-  // These compat scripts are synchronous so firebase global is ready here
-  window.fbSave      = null;   // set to function once connected
-  window.fbConfigured = false;
+// ─── FIREBASE SETUP ───────────────────────────────────────────────────────────
+// The compat SDK scripts above are synchronous, so firebase global is ready here.
+window.fbConfigured = false;
+window.fbSave       = null;
 
-  try {
-    const FIREBASE_CONFIG = {
-      apiKey:            "AIzaSyCcrBPTfKCx21LrnFSn8LKG2cO3f2muMho",
-      authDomain:        "rmll-rookies-diamond-manager.firebaseapp.com",
-      databaseURL:       "https://rmll-rookies-diamond-manager-default-rtdb.firebaseio.com",
-      projectId:         "rmll-rookies-diamond-manager",
-      storageBucket:     "rmll-rookies-diamond-manager.firebasestorage.app",
-      messagingSenderId: "1078601639441",
-      appId:             "1:1078601639441:web:f4d85bb0efcf15295ab3b0"
-    };
+// Track our own write timestamps to suppress echo callbacks
+// We store the timestamp of our last write; any callback within 3s of it is our echo
+window._lastWriteAt  = 0;
+const ECHO_WINDOW_MS = 3000;
 
-    firebase.initializeApp(FIREBASE_CONFIG);
-    const _fbRef = firebase.database().ref('diamond/team');
+try {
+  const FB_CONFIG = {
+    apiKey:            "AIzaSyCcrBPTfKCx21LrnFSn8LKG2cO3f2muMho",
+    authDomain:        "rmll-rookies-diamond-manager.firebaseapp.com",
+    databaseURL:       "https://rmll-rookies-diamond-manager-default-rtdb.firebaseio.com",
+    projectId:         "rmll-rookies-diamond-manager",
+    storageBucket:     "rmll-rookies-diamond-manager.firebasestorage.app",
+    messagingSenderId: "1078601639441",
+    appId:             "1:1078601639441:web:f4d85bb0efcf15295ab3b0"
+  };
 
-    // _localWrite flag: set true before we write so we can ignore our own echo
-    window._localWrite = false;
+  firebase.initializeApp(FB_CONFIG);
+  const _fbRef = firebase.database().ref('diamond/team');
 
-    window.fbSave = function(data) {
-      window._localWrite = true;
-      _fbRef.set(data).catch(e => {
-        window._localWrite = false;
-        console.warn('FB write error:', e);
-      });
-    };
+  window.fbSave = function(data) {
+    window._lastWriteAt = Date.now();
+    _fbRef.set(data).catch(e => console.warn('FB write error:', e));
+  };
 
-    _fbRef.on('value', function(snapshot) {
-      // Ignore the echo from our own writes
-      if (window._localWrite) {
-        window._localWrite = false;
-        return;
-      }
-      const data = snapshot.val();
-      if (window.onFirebaseData) window.onFirebaseData(data);
+  // Also expose archive save/load on separate FB paths
+  window.fbSaveArchive = function(seasons) {
+    firebase.database().ref('diamond/seasons').set(seasons)
+      .catch(e => console.warn('FB archive write error:', e));
+  };
+
+  window.fbListenArchive = function(cb) {
+    firebase.database().ref('diamond/seasons').on('value', snap => {
+      cb(snap.val());
     });
+  };
 
-    window.fbConfigured = true;
-    console.log('✅ Firebase connected');
-  } catch(e) {
-    window.fbConfigured = false;
-    window.fbSave = null;
-    console.warn('Firebase init failed:', e);
-  }
+  _fbRef.on('value', function(snapshot) {
+    const now = Date.now();
+    // Suppress our own echo: if we wrote within the last ECHO_WINDOW_MS, skip
+    if (now - window._lastWriteAt < ECHO_WINDOW_MS) {
+      return;
+    }
+    const data = snapshot.val();
+    if (window.onFirebaseData) window.onFirebaseData(data);
+  });
+
+  window.fbConfigured = true;
+  console.log('✅ Firebase connected');
+} catch(e) {
+  console.warn('Firebase init failed:', e);
+}
 </script>
 
 <script>
@@ -412,54 +466,57 @@ select option{background:var(--panel2)}
 // ═══════════════════════════════════════════════════════
 // CONSTANTS
 // ═══════════════════════════════════════════════════════
-const POSITIONS = [
-  'Pitcher','Catcher','1st Base','2nd Base','3rd Base','Shortstop',
-  'Left Field','Left Center Field','Right Center Field','Right Field'
-];
-const INFIELD  = ['1st Base','2nd Base','3rd Base','Shortstop'];
-const OUTFIELD = ['Left Field','Left Center Field','Right Center Field','Right Field'];
-const LOCKED   = ['Pitcher','Catcher','1st Base']; // never touched by randomizer
-const BENCH = 'Bench';
+const POSITIONS = ['Pitcher','Catcher','1st Base','2nd Base','3rd Base','Shortstop',
+                   'Left Field','Left Center Field','Right Center Field','Right Field'];
+const INFIELD   = ['1st Base','2nd Base','3rd Base','Shortstop'];
+const OUTFIELD  = ['Left Field','Left Center Field','Right Center Field','Right Field'];
+const LOCKED    = ['Pitcher','Catcher','1st Base'];
+const BENCH     = 'Bench';
+const MAX_SEASONS = 10;
 
 const FIELD_POS = {
-  'Pitcher':            {x:50, y:69},
-  'Catcher':            {x:50, y:94},
-  '1st Base':           {x:68, y:73},
-  '2nd Base':           {x:59, y:57},
-  'Shortstop':          {x:41, y:57},
-  '3rd Base':           {x:32, y:73},
-  'Left Field':         {x:15, y:35},
-  'Left Center Field':  {x:35, y:22},
-  'Right Center Field': {x:65, y:22},
-  'Right Field':        {x:85, y:35},
+  'Pitcher':{x:50,y:69},'Catcher':{x:50,y:94},'1st Base':{x:68,y:73},
+  '2nd Base':{x:59,y:57},'Shortstop':{x:41,y:57},'3rd Base':{x:32,y:73},
+  'Left Field':{x:15,y:35},'Left Center Field':{x:35,y:22},
+  'Right Center Field':{x:65,y:22},'Right Field':{x:85,y:35}
 };
 
 // ═══════════════════════════════════════════════════════
-// STATE — load from localStorage, migrate old keys if needed
+// STATE
 // ═══════════════════════════════════════════════════════
-const STORAGE_KEY = 'diamond_v4';
+const STORAGE_KEY    = 'diamond_v4';
+const SEASONS_KEY    = 'diamond_seasons';
+
+function emptyStore() {
+  return { players:[], games:[], battingOrder:[], nextBatterId:null };
+}
 
 function loadStore() {
-  // Try current key
-  try {
-    const d = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (d && Array.isArray(d.players)) return d;
-  } catch(e) {}
-  // Migrate from older keys
-  for (const key of ['diamond_v3', 'diamond_manager']) {
+  // Try current key, then migrate from older keys
+  for (const key of [STORAGE_KEY, 'diamond_v3', 'diamond_manager']) {
     try {
       const d = JSON.parse(localStorage.getItem(key));
-      if (d && Array.isArray(d.players) && d.players.length) {
-        console.log('Migrated data from', key);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
-        return d;
+      if (d && Array.isArray(d.players)) {
+        if (key !== STORAGE_KEY) {
+          console.log('Migrated from', key);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+        }
+        return { ...emptyStore(), ...d };
       }
     } catch(e) {}
   }
-  return { players: [], games: [], battingOrder: [], nextBatterId: null };
+  return emptyStore();
 }
 
-let store = loadStore();
+function loadSeasons() {
+  try {
+    const d = JSON.parse(localStorage.getItem(SEASONS_KEY));
+    return Array.isArray(d) ? d : [];
+  } catch(e) { return []; }
+}
+
+let store   = loadStore();
+let seasons = loadSeasons(); // [{name, date, data}]
 
 let curInnings = 7, curLineup = [], curInnIdx = 1, viewMode = 'list', editingGameId = null, dSrc = null;
 
@@ -469,24 +526,31 @@ let curInnings = 7, curLineup = [], curInnIdx = 1, viewMode = 'list', editingGam
 function persist() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
   clearTimeout(persist._t);
+  // Debounce Firebase write by 800ms to batch rapid changes
   persist._t = setTimeout(() => {
     if (window.fbSave) window.fbSave(store);
-  }, 700);
+  }, 800);
+}
+
+function persistSeasons() {
+  localStorage.setItem(SEASONS_KEY, JSON.stringify(seasons));
+  if (window.fbSaveArchive) window.fbSaveArchive(seasons);
 }
 
 // ═══════════════════════════════════════════════════════
-// FIREBASE DATA HANDLER
-// Only called for genuine REMOTE changes (not our own writes).
+// FIREBASE DATA HANDLER — only called for genuine remote changes
 // ═══════════════════════════════════════════════════════
 window.onFirebaseData = function(data) {
   if (!data) {
-    // DB is empty — push local data up
-    setSyncStatus('ok', '☁️ Firebase ready — saving your data…');
-    if (window.fbSave) window.fbSave(store);
+    // DB empty — push local data up and we're done
+    setSyncStatus('ok', '☁️ Firebase ready — pushing local data…');
+    if (window.fbSave) {
+      window._lastWriteAt = Date.now();
+      window.fbSave(store);
+    }
     return;
   }
 
-  // Clean replace — no merging, no duplicate risk
   data.players      = data.players      || [];
   data.games        = data.games        || [];
   data.battingOrder = data.battingOrder || [];
@@ -504,14 +568,15 @@ function renderAll() {
   renderStats();
   if (document.getElementById('page-batting').classList.contains('active')) renderBatting();
   if (document.getElementById('page-positions').classList.contains('active')) renderCurrentView();
+  if (document.getElementById('page-admin').classList.contains('active')) renderAdmin();
 }
 
 // ═══════════════════════════════════════════════════════
-// SYNC STATUS BAR
+// SYNC STATUS
 // ═══════════════════════════════════════════════════════
 function setSyncStatus(type, msg) {
-  document.getElementById('sync-bar').className = type;
-  document.getElementById('sync-dot').className = 'sync-dot ' + type;
+  document.getElementById('sync-bar').className     = type;
+  document.getElementById('sync-dot').className     = 'sync-dot ' + type;
   document.getElementById('sync-label').textContent = msg;
 }
 
@@ -527,6 +592,7 @@ function showPage(name, btn) {
   if (name === 'batting')   renderBatting();
   if (name === 'stats')     renderStats();
   if (name === 'history')   renderHistory();
+  if (name === 'admin')     renderAdmin();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -536,12 +602,16 @@ function addPlayer() {
   const num  = document.getElementById('new-number').value.trim();
   const name = document.getElementById('new-name').value.trim();
   if (!name) { alert('Enter a player name.'); return; }
+  // Prevent duplicates by name+number
+  if (store.players.find(p => p.name === name && p.number === (num||'?'))) {
+    alert('A player with that name and number already exists.'); return;
+  }
   const p = { id: Date.now(), number: num || '?', name, prefPositions: [] };
   store.players.push(p);
   store.battingOrder.push(p.id);
   curLineup.forEach(inn => { inn[p.id] = ''; });
   persist();
-  document.getElementById('new-name').value = '';
+  document.getElementById('new-name').value  = '';
   document.getElementById('new-number').value = '';
   renderRoster();
 }
@@ -558,24 +628,17 @@ function removePlayer(id) {
 function toggleEdit(id) { document.getElementById('ep-' + id).classList.toggle('open'); }
 
 function savePlayerEdit(id) {
-  const p = store.players.find(pl => pl.id === id);
-  if (!p) return;
+  const p = store.players.find(pl => pl.id === id); if (!p) return;
   p.number = document.getElementById('en-' + id).value.trim() || '?';
   p.name   = document.getElementById('enm-' + id).value.trim() || p.name;
   persist(); renderRoster();
 }
 
-// Priority position preference toggle — max 3, ordered
 function togglePref(pid, pos) {
-  const p = store.players.find(pl => pl.id === pid);
-  if (!p) return;
+  const p = store.players.find(pl => pl.id === pid); if (!p) return;
   const idx = p.prefPositions.indexOf(pos);
-  if (idx !== -1) {
-    p.prefPositions.splice(idx, 1); // deselect
-  } else {
-    if (p.prefPositions.length >= 3) p.prefPositions.shift(); // drop oldest
-    p.prefPositions.push(pos);
-  }
+  if (idx !== -1) p.prefPositions.splice(idx, 1);
+  else { if (p.prefPositions.length >= 3) p.prefPositions.shift(); p.prefPositions.push(pos); }
   persist();
   const cont = document.getElementById('pb-' + pid);
   if (cont) cont.innerHTML = buildPrefBtns(p);
@@ -583,9 +646,9 @@ function togglePref(pid, pos) {
 
 function buildPrefBtns(p) {
   return POSITIONS.map(pos => {
-    const r   = p.prefPositions.indexOf(pos); // -1 or 0,1,2
+    const r   = p.prefPositions.indexOf(pos);
     const cls = r === 0 ? 'rank1' : r === 1 ? 'rank2' : r === 2 ? 'rank3' : '';
-    const rnk = r >= 0 ? `<span class="rank-badge">#${r + 1}</span>` : '';
+    const rnk = r >= 0 ? `<span class="rank-badge">#${r+1}</span>` : '';
     return `<button class="pos-pref-btn ${cls}" onclick="togglePref(${p.id},'${pos}')">${pos}${rnk}</button>`;
   }).join('');
 }
@@ -599,14 +662,16 @@ function getBenchInn(pid) {
 function renderRoster() {
   const list  = document.getElementById('roster-list');
   const empty = document.getElementById('roster-empty');
-  if (!store.players.length) { list.innerHTML = ''; empty.style.display = ''; return; }
+  if (!store.players || !store.players.length) {
+    list.innerHTML = ''; empty.style.display = ''; return;
+  }
   empty.style.display = 'none';
   const sorted = [...store.players].sort((a, b) => parseInt(a.number) - parseInt(b.number));
   list.innerHTML = sorted.map(p => {
     const bi    = getBenchInn(p.id);
-    const prefs = p.prefPositions.map((pos, i) => {
+    const prefs = (p.prefPositions || []).map((pos, i) => {
       const cls = i === 0 ? 'badge-p1' : i === 1 ? 'badge-p2' : 'badge-p3';
-      return `<span class="badge badge-pref ${cls}">${i + 1}. ${pos}</span>`;
+      return `<span class="badge badge-pref ${cls}">${i+1}. ${pos}</span>`;
     }).join('');
     return `<div class="player-row">
       <div class="player-row-main">
@@ -623,7 +688,7 @@ function renderRoster() {
           <div class="form-group"><div class="lbl">Name</div><input id="enm-${p.id}" type="text" value="${p.name}" style="width:185px"></div>
           <button class="btn btn-green btn-sm" onclick="savePlayerEdit(${p.id})">Save</button>
         </div>
-        <div class="lbl">Top 3 preferred positions — click to rank (🥇 gold · 🥈 blue · 🥉 green). Used by the randomizer.</div>
+        <div class="lbl">Top 3 preferred positions — click to rank (🥇 gold · 🥈 blue · 🥉 green)</div>
         <div class="pos-pref-grid" id="pb-${p.id}">${buildPrefBtns(p)}</div>
       </div>
     </div>`;
@@ -642,24 +707,20 @@ function initPositionsPage() {
 }
 
 function updateEditUI() {
-  const banner = document.getElementById('edit-banner');
-  const btn    = document.getElementById('save-game-btn');
-  banner.classList.toggle('visible', !!editingGameId);
-  btn.textContent = editingGameId ? '💾 Update Game' : '💾 Save Game';
+  document.getElementById('edit-banner').classList.toggle('visible', !!editingGameId);
+  document.getElementById('save-game-btn').textContent = editingGameId ? '💾 Update Game' : '💾 Save Game';
 }
 
 function resetCurLineup() {
-  curLineup = Array.from({ length: curInnings }, () => {
+  curLineup = Array.from({length: curInnings}, () => {
     const inn = {}; store.players.forEach(p => inn[p.id] = ''); return inn;
   });
 }
 
 function onInningsChange() {
   const n = parseInt(document.getElementById('game-innings').value);
-  while (curLineup.length < n) {
-    const inn = {}; store.players.forEach(p => inn[p.id] = ''); curLineup.push(inn);
-  }
-  curLineup  = curLineup.slice(0, n);
+  while (curLineup.length < n) { const inn = {}; store.players.forEach(p => inn[p.id] = ''); curLineup.push(inn); }
+  curLineup = curLineup.slice(0, n);
   curInnings = n;
   if (curInnIdx > n) curInnIdx = 1;
   buildInningTabs(); renderCurrentView();
@@ -703,29 +764,27 @@ function renderListView(i) {
   const lineup = curLineup[i];
   let h = '';
   POSITIONS.forEach(pos => {
-    const pid = Object.entries(lineup).find(([k, v]) => v === pos)?.[0];
-    h += `<div class="pos-list-row">
-      <span class="pos-lbl">${pos}</span>
+    const pid = Object.entries(lineup).find(([k,v]) => v === pos)?.[0];
+    h += `<div class="pos-list-row"><span class="pos-lbl">${pos}</span>
       <select onchange="assignPos(${i},this.value,'${pos}')">
         <option value="">-- unassigned --</option>
         ${store.players.map(p => {
           const cur = lineup[p.id]; const taken = cur && cur !== pos;
-          return `<option value="${p.id}" ${pid && parseInt(pid) === p.id ? 'selected' : ''} ${taken ? 'style="color:var(--muted2)"' : ''}>${p.number} ${p.name}${taken ? ' (' + cur + ')' : ''}</option>`;
+          return `<option value="${p.id}" ${pid&&parseInt(pid)===p.id?'selected':''} ${taken?'style="color:var(--muted2)"':''}>${p.number} ${p.name}${taken?' ('+cur+')':''}</option>`;
         }).join('')}
-      </select>
-    </div>`;
+      </select></div>`;
   });
   const benched    = store.players.filter(p => lineup[p.id] === BENCH);
   const unassigned = store.players.filter(p => !lineup[p.id]);
   h += `<div class="pos-list-row bench-row" style="display:block;padding:10px 14px">
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:${benched.length ? '8px' : '0'}">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:${benched.length?'8px':'0'}">
       <span class="pos-lbl bench-lbl">🪑 Bench</span>
-      ${unassigned.length ? `<select style="font-size:.8rem" onchange="addBench(${i},this.value);this.value=''">
+      ${unassigned.length?`<select style="font-size:.8rem" onchange="addBench(${i},this.value);this.value=''">
         <option value="">+ Add to bench…</option>
-        ${unassigned.map(p => `<option value="${p.id}">${p.number} ${p.name}</option>`).join('')}
-      </select>` : ''}
+        ${unassigned.map(p=>`<option value="${p.id}">${p.number} ${p.name}</option>`).join('')}
+      </select>`:''}
     </div>
-    ${benched.map(p => `<div style="display:flex;align-items:center;gap:7px;margin-top:5px">
+    ${benched.map(p=>`<div style="display:flex;align-items:center;gap:7px;margin-top:5px">
       <span style="font-size:.85rem;font-weight:600">${p.number} ${p.name}</span>
       <button class="btn btn-xs btn-danger" onclick="removeBench(${i},${p.id})">✕ Remove</button>
     </div>`).join('')}
@@ -734,22 +793,21 @@ function renderListView(i) {
 }
 
 function renderAllInningsTable() {
-  const el   = document.getElementById('pos-list-content');
+  const el = document.getElementById('pos-list-content');
   if (!store.players.length) { el.innerHTML = '<div class="empty"><div class="icon">🧤</div>Add players to the roster first.</div>'; return; }
-  const rows = [...POSITIONS, BENCH];
   let h = `<div class="overflow-x"><table class="ai-table"><thead><tr>
-    <th>Position</th>${curLineup.map((_, i) => `<th>Inn ${i + 1}</th>`).join('')}
+    <th>Position</th>${curLineup.map((_,i) => `<th>Inn ${i+1}</th>`).join('')}
   </tr></thead><tbody>`;
-  rows.forEach(pos => {
-    h += `<tr><td><span style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:1px;color:${pos===BENCH?'var(--bench-light)':'var(--dirt-light)'}">${pos === BENCH ? '🪑 Bench' : pos}</span></td>`;
+  [...POSITIONS, BENCH].forEach(pos => {
+    h += `<tr><td><span style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:1px;color:${pos===BENCH?'var(--bench-light)':'var(--dirt-light)'}">${pos===BENCH?'🪑 Bench':pos}</span></td>`;
     curLineup.forEach(inn => {
       if (pos === BENCH) {
         const bp = store.players.filter(p => inn[p.id] === BENCH);
-        h += `<td>${bp.map(p => `<span class="cell-bench">${p.name}</span>`).join(' ') || '<span style="color:var(--muted2);font-size:.75rem">—</span>'}</td>`;
+        h += `<td>${bp.map(p=>`<span class="cell-bench">${p.name}</span>`).join(' ')||'<span style="color:var(--muted2);font-size:.75rem">—</span>'}</td>`;
       } else {
-        const pid = Object.entries(inn).find(([k, v]) => v === pos)?.[0];
+        const pid = Object.entries(inn).find(([k,v]) => v === pos)?.[0];
         const pl  = pid ? store.players.find(p => p.id === parseInt(pid)) : null;
-        h += `<td>${pl ? `<span class="cell-pos">${pl.number} ${pl.name}</span>` : '<span style="color:var(--muted2);font-size:.75rem">—</span>'}</td>`;
+        h += `<td>${pl?`<span class="cell-pos">${pl.number} ${pl.name}</span>`:'<span style="color:var(--muted2);font-size:.75rem">—</span>'}</td>`;
       }
     });
     h += '</tr>';
@@ -765,34 +823,30 @@ function renderFieldView(i) {
   const lineup = curLineup[i];
   overlay.innerHTML = POSITIONS.map(pos => {
     const fp  = FIELD_POS[pos];
-    const pid = Object.entries(lineup).find(([k, v]) => v === pos)?.[0];
+    const pid = Object.entries(lineup).find(([k,v]) => v === pos)?.[0];
     const pl  = pid ? store.players.find(p => p.id === parseInt(pid)) : null;
     return `<div class="fp" style="left:${fp.x}%;top:${fp.y}%">
-      <div class="fp-badge ${pl ? '' : 'empty-fp'}">${pl ? `${pl.number} ${pl.name}` : pos}</div>
+      <div class="fp-badge ${pl?'':'empty-fp'}">${pl?`${pl.number} ${pl.name}`:pos}</div>
       <div class="fp-lbl">${pos}</div>
     </div>`;
   }).join('');
-
   const benched    = store.players.filter(p => lineup[p.id] === BENCH);
   const unassigned = store.players.filter(p => !lineup[p.id]);
   let bh = '<div style="display:flex;gap:10px;flex-wrap:wrap">';
   if (benched.length) bh += `<div class="card" style="flex:1;min-width:180px;padding:12px">
     <div class="lbl" style="margin-bottom:7px">🪑 Bench</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px">
-      ${benched.map(p => `<div style="display:flex;align-items:center;gap:5px;background:rgba(201,64,64,.13);border:1px solid rgba(201,64,64,.3);border-radius:6px;padding:4px 9px">
+      ${benched.map(p=>`<div style="display:flex;align-items:center;gap:5px;background:rgba(201,64,64,.13);border:1px solid rgba(201,64,64,.3);border-radius:6px;padding:4px 9px">
         <span style="font-size:.83rem;font-weight:600">${p.number} ${p.name}</span>
         <button class="btn-icon" style="color:var(--bench);font-size:.75rem" onclick="removeBench(${i},${p.id})">✕</button>
       </div>`).join('')}
-    </div>
-  </div>`;
+    </div></div>`;
   if (unassigned.length) bh += `<div class="card" style="flex:1;min-width:200px;padding:12px">
     <div class="lbl" style="margin-bottom:7px">Unassigned — send to bench:</div>
     <div style="display:flex;flex-wrap:wrap;gap:5px">
-      ${unassigned.map(p => `<button class="btn btn-ghost btn-sm" onclick="addBench(${i},${p.id})">${p.number} ${p.name} → 🪑</button>`).join('')}
-    </div>
-  </div>`;
-  bh += '</div>';
-  benchEl.innerHTML = bh;
+      ${unassigned.map(p=>`<button class="btn btn-ghost btn-sm" onclick="addBench(${i},${p.id})">${p.number} ${p.name} → 🪑</button>`).join('')}
+    </div></div>`;
+  benchEl.innerHTML = bh + '</div>';
 }
 
 function assignPos(innIdx, playerId, position) {
@@ -813,14 +867,14 @@ function addBench(innIdx, playerId) {
 function removeBench(innIdx, playerId) { curLineup[innIdx][playerId] = ''; renderCurrentView(); }
 
 function saveGame() {
-  const date = document.getElementById('game-date').value || new Date().toISOString().slice(0, 10);
+  const date = document.getElementById('game-date').value || new Date().toISOString().slice(0,10);
   if (!store.players.length) { alert('No players on roster!'); return; }
   if (editingGameId) {
     const idx = store.games.findIndex(g => g.id === editingGameId);
     if (idx !== -1) { store.games[idx].date = date; store.games[idx].innings = JSON.parse(JSON.stringify(curLineup)); }
     editingGameId = null; alert('✅ Game updated!');
   } else {
-    store.games.push({ id: Date.now(), date, innings: JSON.parse(JSON.stringify(curLineup)) });
+    store.games.push({id: Date.now(), date, innings: JSON.parse(JSON.stringify(curLineup))});
     alert('✅ Game saved!');
   }
   persist(); curLineup = []; updateEditUI();
@@ -828,7 +882,8 @@ function saveGame() {
 
 function editGame(id) {
   const g = store.games.find(gm => gm.id === id); if (!g) return;
-  editingGameId = id; curLineup = JSON.parse(JSON.stringify(g.innings));
+  editingGameId = id;
+  curLineup = JSON.parse(JSON.stringify(g.innings));
   curInnings = g.innings.length; curInnIdx = 1;
   document.getElementById('game-date').value = g.date;
   const sel = document.getElementById('game-innings');
@@ -841,52 +896,27 @@ function editGame(id) {
 function cancelEditGame() { editingGameId = null; curLineup = []; resetCurLineup(); updateEditUI(); buildInningTabs(); renderCurrentView(); }
 
 // ═══════════════════════════════════════════════════════
-// RANDOMIZE POSITIONS ENGINE
+// RANDOMIZER
 // ═══════════════════════════════════════════════════════
-/*
-  Rules:
-  1. Pitcher, Catcher, 1st Base — LOCKED, never reassigned by randomizer.
-  2. For each inning independently:
-     a. Collect all players NOT already locked into P/C/1B.
-     b. Figure how many go to infield (IF), outfield (OF), bench (B)
-        - 10 players on field → 3 locked + 3 IF + 4 OF = 10. Plus extras go to bench.
-        - With fewer players, scale proportionally.
-     c. Determine bench count using historical bench fairness (most-benched sit first).
-     d. From remaining field players, assign IF first using priority prefs, then OF.
-     e. Priority scoring per player per position:
-        prefPositions[0] = 10pts, [1] = 6pts, [2] = 3pts, else 0.
-     f. Greedy assignment: for each open slot, pick highest-scoring available player.
-        If tied, pick randomly among ties.
-  3. Log what was decided.
-*/
-
 function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
+  for (let i = arr.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random()*(i+1)); [arr[i],arr[j]] = [arr[j],arr[i]];
   }
   return arr;
 }
-
 function prefScore(player, pos) {
-  const idx = player.prefPositions ? player.prefPositions.indexOf(pos) : -1;
+  const idx = (player.prefPositions||[]).indexOf(pos);
   return idx === 0 ? 10 : idx === 1 ? 6 : idx === 2 ? 3 : 0;
 }
-
 function pickBest(candidates, pos) {
-  // Return player with highest pref score for this position; break ties randomly
-  let best = -1;
-  let winners = [];
+  let best = -1, winners = [];
   for (const p of candidates) {
     const s = prefScore(p, pos);
-    if (s > best) { best = s; winners = [p]; }
-    else if (s === best) winners.push(p);
+    if (s > best) { best = s; winners = [p]; } else if (s === best) winners.push(p);
   }
-  return winners[Math.floor(Math.random() * winners.length)];
+  return winners[Math.floor(Math.random()*winners.length)];
 }
-
 function getBenchCountsAcrossGame() {
-  // Count bench innings per player across ALL saved games
   const counts = {};
   store.players.forEach(p => counts[p.id] = getBenchInn(p.id));
   return counts;
@@ -894,94 +924,54 @@ function getBenchCountsAcrossGame() {
 
 function randomizePositions() {
   if (!store.players.length) { alert('Add players to the roster first.'); return; }
-  if (curLineup.length === 0) resetCurLineup();
-
-  const n = store.players.length;           // total players
-  const fieldSlots = POSITIONS.length;      // 10
-  const lockedPositions = new Set(LOCKED);  // Pitcher, Catcher, 1st Base
-
-  // How many bench spots per inning?
-  // If n <= 10, bench = n - 10 (could be 0), else bench = n - 10
-  const benchPerInning = Math.max(0, n - fieldSlots);
-
+  if (!curLineup.length) resetCurLineup();
+  const n = store.players.length;
+  const benchPerInning = Math.max(0, n - POSITIONS.length);
   const logLines = [];
   const historicBench = getBenchCountsAcrossGame();
-
-  // Track bench innings assigned THIS game session (so fairness is cumulative)
   const thisBench = {};
   store.players.forEach(p => thisBench[p.id] = 0);
 
   for (let i = 0; i < curInnings; i++) {
     const lineup = curLineup[i];
-
-    // Step 1: collect locked assignments (Pitcher/Catcher/1st Base already set by coach)
-    const locked = {}; // pid → position
+    const locked = {};
     LOCKED.forEach(pos => {
-      const entry = Object.entries(lineup).find(([k, v]) => v === pos);
+      const entry = Object.entries(lineup).find(([k,v]) => v === pos);
       if (entry) locked[parseInt(entry[0])] = pos;
     });
-
-    // Step 2: players free to be randomized
-    let free = store.players.filter(p => !locked[p.id] && lineup[p.id] !== BENCH);
-    // Also don't re-randomize players the coach has manually placed in non-locked positions IF they want
-    // Design choice: randomize ALL non-locked positions each time button is pressed
-    // Clear non-locked, non-bench assignments in this inning first
-    store.players.forEach(p => {
-      if (!locked[p.id]) lineup[p.id] = ''; // clear — we'll re-fill
-    });
-    free = [...store.players.filter(p => !locked[p.id])];
-
-    // Step 3: determine who sits on bench — pick fairest (most innings benched historically + this game)
-    let benchCount = benchPerInning;
+    store.players.forEach(p => { if (!locked[p.id]) lineup[p.id] = ''; });
+    let free = store.players.filter(p => !locked[p.id]);
     let benchPlayers = [];
-
-    if (benchCount > 0) {
-      // Sort free players by total bench innings (asc) — least benched should play, most benched sit
-      const sortedForBench = [...free].sort((a, b) => {
-        const aTotal = (historicBench[a.id] || 0) + (thisBench[a.id] || 0);
-        const bTotal = (historicBench[b.id] || 0) + (thisBench[b.id] || 0);
-        return bTotal - aTotal; // highest bench count sits first
+    if (benchPerInning > 0) {
+      const sortedForBench = [...free].sort((a,b) => {
+        const aT = (historicBench[a.id]||0)+(thisBench[a.id]||0);
+        const bT = (historicBench[b.id]||0)+(thisBench[b.id]||0);
+        return bT - aT;
       });
-      benchPlayers = sortedForBench.slice(0, benchCount);
+      benchPlayers = sortedForBench.slice(0, benchPerInning);
       benchPlayers.forEach(p => { lineup[p.id] = BENCH; thisBench[p.id]++; });
       free = free.filter(p => !benchPlayers.find(b => b.id === p.id));
     }
-
-    // Step 4: assign infield (4 spots) — 3rd Base, Shortstop, 2nd Base (1st Base locked)
-    const infieldOpen = INFIELD.filter(pos => !Object.values(locked).includes(pos));
-    // Shuffle open infield positions slightly to avoid deterministic order
-    shuffle(infieldOpen);
-
     let remaining = [...free];
-    infieldOpen.forEach(pos => {
+    shuffle(INFIELD.filter(pos => !Object.values(locked).includes(pos))).forEach(pos => {
       if (!remaining.length) return;
       const chosen = pickBest(remaining, pos);
       lineup[chosen.id] = pos;
       remaining = remaining.filter(p => p.id !== chosen.id);
     });
-
-    // Step 5: assign outfield (4 spots)
-    shuffle(OUTFIELD);
-    OUTFIELD.forEach(pos => {
+    shuffle([...OUTFIELD]).forEach(pos => {
       if (!remaining.length) return;
       const chosen = pickBest(remaining, pos);
       lineup[chosen.id] = pos;
       remaining = remaining.filter(p => p.id !== chosen.id);
     });
-
-    // Step 6: any truly leftover players (edge case) → bench
     remaining.forEach(p => { lineup[p.id] = BENCH; thisBench[p.id]++; });
-
-    // Log
     const benchNames = benchPlayers.map(p => p.name).join(', ') || 'none';
     logLines.push(`Inning ${i+1}: Bench → ${benchNames}`);
   }
-
-  // Show log
   const logEl = document.getElementById('rng-log');
   logEl.innerHTML = '<b style="color:var(--accent2)">🎲 Randomizer applied</b><br>' + logLines.join('<br>');
   logEl.classList.add('visible');
-
   renderCurrentView(); maybeUpdateBatting();
 }
 
@@ -992,21 +982,21 @@ function buildGamePlanText(innings, dateStr) {
   const label = dateStr ? fmtDate(dateStr) : 'Current Game Plan';
   const lines = ['⚾ DIAMOND MANAGER — GAME PLAN', label.toUpperCase(), '─'.repeat(36), ''];
   innings.forEach((inn, i) => {
-    lines.push(`▸ INNING ${i + 1}`);
+    lines.push(`▸ INNING ${i+1}`);
     POSITIONS.forEach(pos => {
-      const pid = Object.entries(inn).find(([k, v]) => v === pos)?.[0];
+      const pid = Object.entries(inn).find(([k,v]) => v === pos)?.[0];
       const pl  = pid ? store.players.find(p => p.id === parseInt(pid)) : null;
       lines.push(`  ${pos.padEnd(24)} ${pl ? `#${pl.number} ${pl.name}` : '—'}`);
     });
     const benched = store.players.filter(p => inn[p.id] === BENCH);
-    if (benched.length) lines.push(`  ${'🪑 Bench'.padEnd(24)} ${benched.map(p => `#${p.number} ${p.name}`).join(', ')}`);
+    if (benched.length) lines.push(`  ${'🪑 Bench'.padEnd(24)} ${benched.map(p=>`#${p.number} ${p.name}`).join(', ')}`);
     lines.push('');
   });
   if (store.battingOrder.length) {
     lines.push('▸ BATTING ORDER');
     store.battingOrder.forEach((id, i) => {
       const p = store.players.find(pl => pl.id === id); if (!p) return;
-      lines.push(`  ${String(i + 1).padStart(2)}. #${p.number} ${p.name}${store.nextBatterId === id ? ' ◀ NEXT UP' : ''}`);
+      lines.push(`  ${String(i+1).padStart(2)}. #${p.number} ${p.name}${store.nextBatterId===id?' ◀ NEXT UP':''}`);
     });
     lines.push('');
   }
@@ -1019,9 +1009,11 @@ function openCopyModal(innings, dateStr) {
   document.getElementById('copy-textarea').value = buildGamePlanText(innings, dateStr);
   document.getElementById('copy-modal').classList.add('open');
 }
-
+function openCopyModalById(id) {
+  const g = store.games.find(gm => gm.id === id); if (!g) return;
+  openCopyModal(g.innings, g.date);
+}
 function closeCopyModal() { document.getElementById('copy-modal').classList.remove('open'); }
-
 function copyToClipboard() {
   const ta = document.getElementById('copy-textarea');
   const btn = document.getElementById('copy-btn');
@@ -1039,13 +1031,11 @@ function copyToClipboard() {
 function maybeUpdateBatting() {
   if (document.getElementById('page-batting').classList.contains('active')) renderBatting();
 }
-
 function getPlayerPos(pid) {
   if (!curLineup.length) return '';
   const v = curLineup[0][pid];
   return v ? (v === BENCH ? '🪑 Bench' : v) : '';
 }
-
 function renderBatting() {
   const listEl  = document.getElementById('batting-list');
   const emptyEl = document.getElementById('batting-empty');
@@ -1055,53 +1045,51 @@ function renderBatting() {
   if (!store.players.length) { listEl.innerHTML = ''; emptyEl.style.display = ''; selEl.innerHTML = '<option value="">-- select player --</option>'; updateCarriedInfo(); return; }
   emptyEl.style.display = 'none';
   selEl.innerHTML = '<option value="">-- select player --</option>' +
-    store.battingOrder.map(id => { const p = store.players.find(pl => pl.id === id); return p ? `<option value="${id}" ${store.nextBatterId === id ? 'selected' : ''}>${p.number} ${p.name}</option>` : ''; }).join('');
+    store.battingOrder.map(id => { const p = store.players.find(pl => pl.id === id); return p?`<option value="${id}" ${store.nextBatterId===id?'selected':''}>${p.number} ${p.name}</option>`:''; }).join('');
   listEl.innerHTML = store.battingOrder.map((id, i) => {
     const p = store.players.find(pl => pl.id === id); if (!p) return '';
     const pos = getPlayerPos(id); const isNx = store.nextBatterId === id;
-    return `<div class="batter-row ${isNx ? 'next-up' : ''}" draggable="true"
+    return `<div class="batter-row ${isNx?'next-up':''}" draggable="true"
       ondragstart="dStart(event,${i})" ondragover="dOver(event)" ondrop="dDrop(event,${i})" ondragend="dEnd()">
-      <span class="batter-spot ${isNx ? 'nxt' : ''}">${i + 1}</span>
+      <span class="batter-spot ${isNx?'nxt':''}">${i+1}</span>
       <div class="batter-info">
         <div class="batter-name">${p.number} ${p.name}</div>
-        ${pos ? `<div class="batter-pos-tag">${pos}</div>` : ''}
+        ${pos?`<div class="batter-pos-tag">${pos}</div>`:''}
       </div>
       <div style="display:flex;gap:3px">
-        <button class="btn-icon" onclick="moveBatter(${i},-1)" ${i === 0 ? 'disabled' : ''}>↑</button>
-        <button class="btn-icon" onclick="moveBatter(${i},1)"  ${i === store.battingOrder.length - 1 ? 'disabled' : ''}>↓</button>
+        <button class="btn-icon" onclick="moveBatter(${i},-1)" ${i===0?'disabled':''}>↑</button>
+        <button class="btn-icon" onclick="moveBatter(${i},1)"  ${i===store.battingOrder.length-1?'disabled':''}>↓</button>
       </div>
-      ${isNx ? '<span class="next-pill">▶ NEXT UP</span>' : ''}
+      ${isNx?'<span class="next-pill">▶ NEXT UP</span>':''}
     </div>`;
   }).join('');
   updateCarriedInfo();
 }
-
 function updateCarriedInfo() {
   const el = document.getElementById('carried-info');
   if (!store.nextBatterId) { el.innerHTML = '<span style="color:var(--muted)">Not set — use the pointer below</span>'; return; }
   const p = store.players.find(pl => pl.id === store.nextBatterId);
   el.innerHTML = p ? `<span style="color:var(--accent);font-weight:700">${p.number} ${p.name}</span> <span style="color:var(--accent3);font-size:.73rem;margin-left:4px">▶ bats first next game</span>` : 'Not set';
 }
-
 function setNextBatter(val) { store.nextBatterId = val ? parseInt(val) : null; persist(); renderBatting(); }
 function moveBatter(idx, dir) {
-  const ni = idx + dir; if (ni < 0 || ni >= store.battingOrder.length) return;
-  [store.battingOrder[idx], store.battingOrder[ni]] = [store.battingOrder[ni], store.battingOrder[idx]];
+  const ni = idx+dir; if (ni<0||ni>=store.battingOrder.length) return;
+  [store.battingOrder[idx],store.battingOrder[ni]] = [store.battingOrder[ni],store.battingOrder[idx]];
   persist(); renderBatting();
 }
 function saveBattingOrder() { persist(); alert('✅ Batting order saved!'); }
 function resetBattingOrder() {
   if (!confirm('Reset to jersey number order?')) return;
-  store.battingOrder = [...store.players].sort((a, b) => parseInt(a.number) - parseInt(b.number)).map(p => p.id);
+  store.battingOrder = [...store.players].sort((a,b) => parseInt(a.number)-parseInt(b.number)).map(p => p.id);
   persist(); renderBatting();
 }
-function dStart(e, i) { dSrc = i; e.dataTransfer.effectAllowed = 'move'; e.currentTarget.style.opacity = '.4'; }
-function dOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
-function dEnd() { document.querySelectorAll('.batter-row').forEach(r => r.style.opacity = ''); }
-function dDrop(e, i) {
-  e.preventDefault(); if (dSrc === null || dSrc === i) return;
-  const moved = store.battingOrder.splice(dSrc, 1)[0]; store.battingOrder.splice(i, 0, moved);
-  dSrc = null; persist(); renderBatting();
+function dStart(e,i){dSrc=i;e.dataTransfer.effectAllowed='move';e.currentTarget.style.opacity='.4';}
+function dOver(e){e.preventDefault();e.dataTransfer.dropEffect='move';}
+function dEnd(){document.querySelectorAll('.batter-row').forEach(r=>r.style.opacity='');}
+function dDrop(e,i){
+  e.preventDefault();if(dSrc===null||dSrc===i)return;
+  const moved=store.battingOrder.splice(dSrc,1)[0];store.battingOrder.splice(i,0,moved);
+  dSrc=null;persist();renderBatting();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1111,25 +1099,25 @@ function renderStats() {
   const tbody = document.getElementById('stats-body');
   const empty = document.getElementById('stats-empty');
   const alrt  = document.getElementById('fairness-alert');
-  if (!store.players.length || !store.games.length) { tbody.innerHTML = ''; empty.style.display = ''; alrt.style.display = 'none'; return; }
+  if (!store.players.length||!store.games.length) { tbody.innerHTML=''; empty.style.display=''; alrt.style.display='none'; return; }
   empty.style.display = 'none';
-  const totalInn = store.games.reduce((s, g) => s + g.innings.length, 0);
+  const totalInn = store.games.reduce((s,g) => s+g.innings.length, 0);
   const stats = store.players.map(p => {
-    const bi = getBenchInn(p.id);
-    const g  = store.games.filter(gm => gm.innings.some(inn => inn[p.id])).length;
-    const pct = totalInn > 0 ? Math.round(bi / totalInn * 100) : 0;
-    return { ...p, bi, g, pct };
-  }).sort((a, b) => b.bi - a.bi);
-  const maxB = Math.max(...stats.map(s => s.bi), 1);
-  const minB = Math.min(...stats.map(s => s.bi));
-  const diff = maxB - minB;
-  if (diff >= 2) {
-    alrt.innerHTML = `⚠️ <b>${stats[0].name}</b> benched ${diff} more inning(s) than <b>${stats[stats.length - 1].name}</b>. Prioritize benching <b>${stats[stats.length - 1].name}</b> next game.`;
+    const bi  = getBenchInn(p.id);
+    const g   = store.games.filter(gm => gm.innings.some(inn => inn[p.id])).length;
+    const pct = totalInn>0 ? Math.round(bi/totalInn*100) : 0;
+    return {...p, bi, g, pct};
+  }).sort((a,b) => b.bi-a.bi);
+  const maxB = Math.max(...stats.map(s=>s.bi),1);
+  const minB = Math.min(...stats.map(s=>s.bi));
+  const diff = maxB-minB;
+  if (diff>=2) {
+    alrt.innerHTML = `⚠️ <b>${stats[0].name}</b> benched ${diff} more inning(s) than <b>${stats[stats.length-1].name}</b>. Prioritize benching <b>${stats[stats.length-1].name}</b> next game.`;
     alrt.style.display = '';
   } else alrt.style.display = 'none';
   tbody.innerHTML = stats.map(s => {
-    const bw   = maxB ? Math.round(s.bi / maxB * 100) : 0;
-    const fair = diff >= 2 && s.bi === maxB ? '🔴 Most' : diff >= 2 && s.bi === minB ? '🟢 Least' : '✅';
+    const bw   = maxB ? Math.round(s.bi/maxB*100) : 0;
+    const fair = diff>=2&&s.bi===maxB?'🔴 Most':diff>=2&&s.bi===minB?'🟢 Least':'✅';
     return `<tr>
       <td style="font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:var(--dirt-light)">${s.number}</td>
       <td style="font-weight:600">${s.name}</td><td style="color:var(--muted)">${s.g}</td>
@@ -1145,51 +1133,144 @@ function renderStats() {
 function renderHistory() {
   const listEl = document.getElementById('history-list');
   const empty  = document.getElementById('history-empty');
-  if (!store.games.length) { listEl.innerHTML = ''; empty.style.display = ''; return; }
+  if (!store.games.length) { listEl.innerHTML=''; empty.style.display=''; return; }
   empty.style.display = 'none';
-  listEl.innerHTML = [...store.games].sort((a, b) => b.date.localeCompare(a.date)).map(g => {
-    const bs = g.innings.map((inn, i) => {
-      const bp = Object.entries(inn).filter(([k, v]) => v === BENCH).map(([k]) => { const p = store.players.find(pl => pl.id === parseInt(k)); return p ? p.name : '?'; });
-      return bp.length ? `Inn ${i + 1}: ${bp.join(', ')}` : null;
+  listEl.innerHTML = [...store.games].sort((a,b) => b.date.localeCompare(a.date)).map(g => {
+    const bs = g.innings.map((inn,i) => {
+      const bp = Object.entries(inn).filter(([k,v])=>v===BENCH).map(([k]) => { const p=store.players.find(pl=>pl.id===parseInt(k)); return p?p.name:'?'; });
+      return bp.length ? `Inn ${i+1}: ${bp.join(', ')}` : null;
     }).filter(Boolean);
-    // Safely encode innings for onclick
-    const innEncoded = encodeURIComponent(JSON.stringify(g.innings));
     return `<div class="game-hcard">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
         <b style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:1px">${fmtDate(g.date)}</b>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           <span class="game-date-tag">${g.innings.length} innings</span>
-          <button class="btn btn-blue btn-xs" onclick="openCopyModalById(${g.id})">📋 Copy Plan</button>
+          <button class="btn btn-blue btn-xs" onclick="openCopyModalById(${g.id})">📋 Copy</button>
           <button class="btn btn-ghost btn-xs" onclick="editGame(${g.id})">✏️ Edit</button>
           <button class="btn btn-danger btn-xs" onclick="delGame(${g.id})">Delete</button>
         </div>
       </div>
-      ${bs.length ? `<div class="lbl" style="margin-bottom:5px">Bench assignments</div><div>${bs.map(s => `<span class="mini-tag">🪑 <b>${s}</b></span>`).join('')}</div>` : '<span class="mini-tag" style="color:var(--muted2)">No bench assignments recorded</span>'}
+      ${bs.length?`<div class="lbl" style="margin-bottom:5px">Bench</div><div>${bs.map(s=>`<span class="mini-tag">🪑 <b>${s}</b></span>`).join('')}</div>`:'<span class="mini-tag" style="color:var(--muted2)">No bench recorded</span>'}
     </div>`;
   }).join('');
 }
 
-function openCopyModalById(id) {
-  const g = store.games.find(gm => gm.id === id); if (!g) return;
-  openCopyModal(g.innings, g.date);
+function delGame(id) { if(!confirm('Delete this game?'))return; store.games=store.games.filter(g=>g.id!==id); persist(); renderHistory(); }
+function fmtDate(d) { return new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}); }
+
+// ═══════════════════════════════════════════════════════
+// ADMIN — SEASON MANAGEMENT
+// ═══════════════════════════════════════════════════════
+function renderAdmin() {
+  // Current season info
+  const infoEl = document.getElementById('admin-current-info');
+  infoEl.innerHTML = `
+    <span style="color:var(--text);font-weight:600">${store.players.length}</span> players &nbsp;·&nbsp;
+    <span style="color:var(--text);font-weight:600">${store.games.length}</span> games saved
+    ${store.games.length ? `&nbsp;·&nbsp; Last game: <span style="color:var(--text)">${fmtDate(store.games[store.games.length-1].date)}</span>` : ''}
+  `;
+
+  // Firebase status
+  const fbEl = document.getElementById('admin-firebase-status');
+  if (window.fbConfigured) {
+    fbEl.innerHTML = '<span style="color:var(--accent3);font-weight:700">✅ Firebase connected</span> — data syncs across all devices in real time.';
+  } else {
+    fbEl.innerHTML = '<span style="color:var(--accent);font-weight:700">⚠️ Firebase not configured</span> — data is saved locally only. Expand setup instructions below.';
+  }
+
+  // Archived seasons
+  renderArchivedSeasons();
+
+  // Listen for remote seasons if FB configured
+  if (window.fbListenArchive && !renderAdmin._fbListening) {
+    renderAdmin._fbListening = true;
+    window.fbListenArchive(remoteSeasonsData => {
+      if (!remoteSeasonsData) return;
+      const remoteArr = Array.isArray(remoteSeasonsData) ? remoteSeasonsData : Object.values(remoteSeasonsData);
+      if (remoteArr.length > seasons.length) {
+        seasons = remoteArr.slice(-MAX_SEASONS);
+        localStorage.setItem(SEASONS_KEY, JSON.stringify(seasons));
+        renderArchivedSeasons();
+      }
+    });
+  }
 }
 
-function delGame(id) { if (!confirm('Delete this game?')) return; store.games = store.games.filter(g => g.id !== id); persist(); renderHistory(); }
-function fmtDate(d) { return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }); }
+function renderArchivedSeasons() {
+  const listEl = document.getElementById('archived-seasons-list');
+  const empty  = document.getElementById('archived-empty');
+  if (!seasons.length) { listEl.innerHTML=''; empty.style.display=''; return; }
+  empty.style.display = 'none';
+  listEl.innerHTML = [...seasons].reverse().map((s, revIdx) => {
+    const realIdx = seasons.length - 1 - revIdx;
+    const playerCount = s.data.players ? s.data.players.length : 0;
+    const gameCount   = s.data.games   ? s.data.games.length   : 0;
+    return `<div class="season-card">
+      <div class="season-meta">
+        <div class="season-name">📁 ${s.name}</div>
+        <div class="season-detail">Archived ${fmtDate(s.date)} &nbsp;·&nbsp; ${playerCount} players &nbsp;·&nbsp; ${gameCount} games</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="loadSeason(${realIdx})">↩ Load</button>
+      <button class="btn btn-danger btn-xs" onclick="deleteSeason(${realIdx})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function startNewSeason() {
+  const nameInput = document.getElementById('season-name-input').value.trim();
+  if (!nameInput) { alert('Enter a name for this season before archiving.'); document.getElementById('season-name-input').focus(); return; }
+  if (!store.players.length && !store.games.length) { alert('Nothing to archive — the current season is already empty.'); return; }
+  if (!confirm(`Archive the current season as "${nameInput}" and start fresh?\n\nThis will clear all players, games, and stats. The archive can be reloaded from Admin at any time.`)) return;
+
+  // Save current data as archived season
+  seasons.push({ name: nameInput, date: new Date().toISOString().slice(0,10), data: JSON.parse(JSON.stringify(store)) });
+
+  // Enforce max 10 seasons — drop oldest
+  if (seasons.length > MAX_SEASONS) seasons = seasons.slice(seasons.length - MAX_SEASONS);
+
+  persistSeasons();
+
+  // Clear current season
+  store = emptyStore();
+  curLineup = [];
+  persist();
+
+  document.getElementById('season-name-input').value = '';
+  alert(`✅ Season "${nameInput}" archived. Starting fresh!`);
+  renderAll();
+  renderAdmin();
+}
+
+function loadSeason(idx) {
+  const s = seasons[idx]; if (!s) return;
+  if (!confirm(`Load season "${s.name}"?\n\nThis will replace your current data with the archived season. Your current data will be lost unless it's already been archived.`)) return;
+  store = { ...emptyStore(), ...s.data };
+  curLineup = [];
+  persist();
+  renderAll();
+  renderAdmin();
+  alert(`✅ Season "${s.name}" loaded!`);
+}
+
+function deleteSeason(idx) {
+  const s = seasons[idx]; if (!s) return;
+  if (!confirm(`Permanently delete the archive "${s.name}"? This cannot be undone.`)) return;
+  seasons.splice(idx, 1);
+  persistSeasons();
+  renderArchivedSeasons();
+}
 
 // ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
-// Render immediately from local storage — don't wait for Firebase
 renderRoster();
 renderHistory();
 renderStats();
 
-// Set initial sync bar state
 if (window.fbConfigured) {
   setSyncStatus('ok', '☁️ Firebase connected — syncing…');
 } else {
-  setSyncStatus('off', '⚡ Firebase not configured — data saved locally only.');
+  setSyncStatus('off', '⚡ Data saved locally only — see Admin tab to configure Firebase.');
 }
 </script>
 </body>
