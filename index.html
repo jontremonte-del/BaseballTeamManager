@@ -359,41 +359,50 @@ select option{background:var(--panel2)}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
-  // ── YOUR FIREBASE CONFIG ───────────────────────────────────
-  const FIREBASE_CONFIG = {
-    apiKey:            "AIzaSyCcrBPTfKCx21LrnFSn8LKG2cO3f2muMho",
-    authDomain:        "rmll-rookies-diamond-manager.firebaseapp.com",
-    databaseURL:       "https://rmll-rookies-diamond-manager-default-rtdb.firebaseio.com/",
-    projectId:         "rmll-rookies-diamond-manager",
-    storageBucket:     "rmll-rookies-diamond-manager.firebasestorage.app",
-    messagingSenderId: "1078601639441",
-    appId:             "1:1078601639441:web:f4d85bb0efcf15295ab3b0"
-  };
-  // ──────────────────────────────────────────────────────────
+  // These compat scripts are synchronous so firebase global is ready here
+  window.fbSave      = null;   // set to function once connected
+  window.fbConfigured = false;
 
   try {
-    firebase.initializeApp(FIREBASE_CONFIG);
-    const _db     = firebase.database();
-    const _fbRef  = _db.ref('diamond/team');
-
-    // Simple save function — called from persist()
-    window.fbSave = function(data) {
-      _fbRef.set(data).catch(e => console.warn('FB write error:', e));
+    const FIREBASE_CONFIG = {
+      apiKey:            "AIzaSyCcrBPTfKCx21LrnFSn8LKG2cO3f2muMho",
+      authDomain:        "rmll-rookies-diamond-manager.firebaseapp.com",
+      databaseURL:       "https://rmll-rookies-diamond-manager-default-rtdb.firebaseio.com",
+      projectId:         "rmll-rookies-diamond-manager",
+      storageBucket:     "rmll-rookies-diamond-manager.firebasestorage.app",
+      messagingSenderId: "1078601639441",
+      appId:             "1:1078601639441:web:f4d85bb0efcf15295ab3b0"
     };
 
-    // Listen for remote changes — fires immediately on load with current DB value
+    firebase.initializeApp(FIREBASE_CONFIG);
+    const _fbRef = firebase.database().ref('diamond/team');
+
+    // _localWrite flag: set true before we write so we can ignore our own echo
+    window._localWrite = false;
+
+    window.fbSave = function(data) {
+      window._localWrite = true;
+      _fbRef.set(data).catch(e => {
+        window._localWrite = false;
+        console.warn('FB write error:', e);
+      });
+    };
+
     _fbRef.on('value', function(snapshot) {
+      // Ignore the echo from our own writes
+      if (window._localWrite) {
+        window._localWrite = false;
+        return;
+      }
       const data = snapshot.val();
-      // onFirebaseData is defined in the main script below — always available
-      // because this compat script runs synchronously before DOMContentLoaded
       if (window.onFirebaseData) window.onFirebaseData(data);
     });
 
     window.fbConfigured = true;
-    console.log('✅ Firebase compat connected');
+    console.log('✅ Firebase connected');
   } catch(e) {
     window.fbConfigured = false;
-    window.fbSave = () => {};
+    window.fbSave = null;
     console.warn('Firebase init failed:', e);
   }
 </script>
@@ -460,38 +469,29 @@ let curInnings = 7, curLineup = [], curInnIdx = 1, viewMode = 'list', editingGam
 function persist() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
   clearTimeout(persist._t);
-  persist._t = setTimeout(() => { if (window.fbSave) window.fbSave(store); }, 700);
+  persist._t = setTimeout(() => {
+    if (window.fbSave) window.fbSave(store);
+  }, 700);
 }
 
 // ═══════════════════════════════════════════════════════
 // FIREBASE DATA HANDLER
-// Called by the compat SDK listener above whenever DB changes.
-// Also called on page load with the current DB snapshot.
+// Only called for genuine REMOTE changes (not our own writes).
 // ═══════════════════════════════════════════════════════
 window.onFirebaseData = function(data) {
   if (!data) {
-    // DB is empty — push whatever we have locally up to Firebase
-    setSyncStatus('ok', '☁️ Firebase connected — pushing your data now…');
+    // DB is empty — push local data up
+    setSyncStatus('ok', '☁️ Firebase ready — saving your data…');
     if (window.fbSave) window.fbSave(store);
     return;
   }
 
-  // Ensure schema
+  // Clean replace — no merging, no duplicate risk
   data.players      = data.players      || [];
   data.games        = data.games        || [];
   data.battingOrder = data.battingOrder || [];
+  data.nextBatterId = data.nextBatterId || null;
 
-  const localCount  = (store.players || []).length;
-  const remoteCount = data.players.length;
-
-  if (remoteCount === 0 && localCount > 0) {
-    // Remote empty, local has players — push local up
-    if (window.fbSave) window.fbSave(store);
-    setSyncStatus('ok', '☁️ Your roster pushed to Firebase — coaches can now see it');
-    return;
-  }
-
-  // Remote has data — use it (it's the source of truth)
   store = data;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
   renderAll();
