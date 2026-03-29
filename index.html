@@ -355,12 +355,11 @@ select option{background:var(--panel2)}
   </div>
 </div>
 
-<!-- Firebase SDK (module) -->
-<script type="module">
-  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-  import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
-
-  // ── PASTE YOUR FIREBASE CONFIG BELOW ──────────────────────
+<!-- Firebase compat SDK — regular scripts, no module/timing issues -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+  // ── YOUR FIREBASE CONFIG ───────────────────────────────────
   const FIREBASE_CONFIG = {
     apiKey:            "AIzaSyCcrBPTfKCx21LrnFSn8LKG2cO3f2muMho",
     authDomain:        "rmll-rookies-diamond-manager.firebaseapp.com",
@@ -372,41 +371,30 @@ select option{background:var(--panel2)}
   };
   // ──────────────────────────────────────────────────────────
 
-  const FB_CONFIGURED = !FIREBASE_CONFIG.apiKey.startsWith('PASTE');
-  window.fbConfigured = false;
-  window.fbSave = () => {};
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    const _db     = firebase.database();
+    const _fbRef  = _db.ref('diamond/team');
 
-  if (FB_CONFIGURED) {
-    try {
-      const app = initializeApp(FIREBASE_CONFIG);
-      const db  = getDatabase(app);
-      const fbRef = ref(db, 'diamond/team');
+    // Simple save function — called from persist()
+    window.fbSave = function(data) {
+      _fbRef.set(data).catch(e => console.warn('FB write error:', e));
+    };
 
-      window.fbSave = (data) => set(fbRef, data).catch(e => console.warn('FB write:', e));
-      window.fbConfigured = true;
+    // Listen for remote changes — fires immediately on load with current DB value
+    _fbRef.on('value', function(snapshot) {
+      const data = snapshot.val();
+      // onFirebaseData is defined in the main script below — always available
+      // because this compat script runs synchronously before DOMContentLoaded
+      if (window.onFirebaseData) window.onFirebaseData(data);
+    });
 
-      // ── KEY FIX: listen for remote data and call handler when ready ──
-      onValue(fbRef, (snapshot) => {
-        const data = snapshot.val();
-        if (!data) {
-          // DB is empty — push local data up so other devices get it
-          if (window.getLocalStore) window.fbSave(window.getLocalStore());
-          window.fbReady && window.fbReady(null);
-          return;
-        }
-        // If app JS is already loaded, call handler immediately
-        if (window.onFirebaseData) {
-          window.onFirebaseData(data);
-        } else {
-          // Queue it — app JS will pick it up on init
-          window._pendingFbData = data;
-        }
-      });
-
-      console.log('✅ Firebase connected');
-    } catch(e) {
-      console.warn('Firebase init failed:', e);
-    }
+    window.fbConfigured = true;
+    console.log('✅ Firebase compat connected');
+  } catch(e) {
+    window.fbConfigured = false;
+    window.fbSave = () => {};
+    console.warn('Firebase init failed:', e);
   }
 </script>
 
@@ -438,45 +426,36 @@ const FIELD_POS = {
 };
 
 // ═══════════════════════════════════════════════════════
-// STATE — with automatic migration from older storage keys
+// STATE — load from localStorage, migrate old keys if needed
 // ═══════════════════════════════════════════════════════
 const STORAGE_KEY = 'diamond_v4';
-const OLD_KEYS    = ['diamond_v3', 'diamond_manager']; // previous versions
 
 function loadStore() {
-  // 1. Try current key first
-  const current = localStorage.getItem(STORAGE_KEY);
-  if (current) {
-    try { return JSON.parse(current); } catch(e) {}
+  // Try current key
+  try {
+    const d = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (d && Array.isArray(d.players)) return d;
+  } catch(e) {}
+  // Migrate from older keys
+  for (const key of ['diamond_v3', 'diamond_manager']) {
+    try {
+      const d = JSON.parse(localStorage.getItem(key));
+      if (d && Array.isArray(d.players) && d.players.length) {
+        console.log('Migrated data from', key);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+        return d;
+      }
+    } catch(e) {}
   }
-  // 2. Try migrating from old keys (this is why roster was blank on existing device)
-  for (const key of OLD_KEYS) {
-    const old = localStorage.getItem(key);
-    if (old) {
-      try {
-        const data = JSON.parse(old);
-        if (data && data.players && data.players.length) {
-          console.log(`Migrating data from ${key} → ${STORAGE_KEY}`);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-          // Don't delete old key in case of rollback
-          return data;
-        }
-      } catch(e) {}
-    }
-  }
-  // 3. Fresh start
   return { players: [], games: [], battingOrder: [], nextBatterId: null };
 }
 
 let store = loadStore();
 
-// Expose for Firebase module to read local store before remote exists
-window.getLocalStore = () => store;
-
 let curInnings = 7, curLineup = [], curInnIdx = 1, viewMode = 'list', editingGameId = null, dSrc = null;
 
 // ═══════════════════════════════════════════════════════
-// PERSIST — writes localStorage + debounced Firebase push
+// PERSIST
 // ═══════════════════════════════════════════════════════
 function persist() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
@@ -485,37 +464,38 @@ function persist() {
 }
 
 // ═══════════════════════════════════════════════════════
-// FIREBASE INCOMING DATA HANDLER
-// Called on initial load from remote AND on any remote change.
+// FIREBASE DATA HANDLER
+// Called by the compat SDK listener above whenever DB changes.
+// Also called on page load with the current DB snapshot.
 // ═══════════════════════════════════════════════════════
 window.onFirebaseData = function(data) {
-  if (!data) return;
+  if (!data) {
+    // DB is empty — push whatever we have locally up to Firebase
+    setSyncStatus('ok', '☁️ Firebase connected — pushing your data now…');
+    if (window.fbSave) window.fbSave(store);
+    return;
+  }
 
-  // Ensure arrays exist (guard against old/partial schema)
+  // Ensure schema
   data.players      = data.players      || [];
   data.games        = data.games        || [];
   data.battingOrder = data.battingOrder || [];
 
-  // If remote has players and local is empty (fresh device), always take remote
-  // If both have players, take whichever has MORE players (most complete)
-  // If remote has zero players but local has some, keep local and push it up
-  const localHasData  = store.players && store.players.length > 0;
-  const remoteHasData = data.players.length > 0;
+  const localCount  = (store.players || []).length;
+  const remoteCount = data.players.length;
 
-  if (!remoteHasData && localHasData) {
-    // Remote is empty — push local data up to Firebase so other devices get it
-    console.log('Remote DB empty, pushing local data up');
+  if (remoteCount === 0 && localCount > 0) {
+    // Remote empty, local has players — push local up
     if (window.fbSave) window.fbSave(store);
-    setSyncStatus('ok', '☁️ Local data pushed to Firebase — coaches will now see it');
+    setSyncStatus('ok', '☁️ Your roster pushed to Firebase — coaches can now see it');
     return;
   }
 
-  if (remoteHasData) {
-    store = data;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
-    renderAll();
-    setSyncStatus('ok', '☁️ Synced with Firebase — coaches see this in real time');
-  }
+  // Remote has data — use it (it's the source of truth)
+  store = data;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  renderAll();
+  setSyncStatus('ok', '☁️ Live — all devices in sync');
 };
 
 function renderAll() {
@@ -1200,29 +1180,17 @@ function fmtDate(d) { return new Date(d + 'T12:00:00').toLocaleDateString('en-US
 // ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
-// Render immediately from whatever we loaded (local or migrated)
+// Render immediately from local storage — don't wait for Firebase
 renderRoster();
 renderHistory();
 renderStats();
 
-// After a short delay, check Firebase state
-setTimeout(() => {
-  if (window._pendingFbData) {
-    // Firebase data arrived before this script finished — process it now
-    window.onFirebaseData(window._pendingFbData);
-    window._pendingFbData = null;
-  } else if (window.fbConfigured) {
-    // Firebase is connected but no data arrived yet (DB may be empty)
-    // Push our local data up so it's available to other devices
-    if (store.players && store.players.length > 0) {
-      console.log('Pushing local data to Firebase on init');
-      if (window.fbSave) window.fbSave(store);
-    }
-    setSyncStatus('ok', '☁️ Connected to Firebase — data syncs to coaches in real time');
-  } else {
-    setSyncStatus('off', '⚡ Firebase not configured — data saved locally only. See setup in History tab.');
-  }
-}, 1200);
+// Set initial sync bar state
+if (window.fbConfigured) {
+  setSyncStatus('ok', '☁️ Firebase connected — syncing…');
+} else {
+  setSyncStatus('off', '⚡ Firebase not configured — data saved locally only.');
+}
 </script>
 </body>
 </html>
