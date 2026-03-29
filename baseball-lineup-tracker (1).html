@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diamond Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --dirt:#c8803a;--dirt-light:#e8a55a;--dirt-dark:#8a5520;
+  --grass:#2d6a2d;--grass-light:#3a8a3a;--grass-mid:#245224;
+  --chalk:#f5f0e8;
+  --night:#0d1117;--panel:#161b22;--panel2:#1e2630;--panel3:#252d38;
+  --border:#30363d;--border2:#3d4755;
+  --text:#e6edf3;--muted:#8b949e;--muted2:#6a7480;
+  --bench:#c94040;--bench-light:#e05555;
+  --accent:#f0c040;--accent2:#58a6ff;--accent3:#56d364;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--night);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+header{background:linear-gradient(135deg,#1a3d1a 0%,#0d2010 100%);border-bottom:3px solid var(--dirt);padding:12px 20px;display:flex;align-items:center;gap:14px}
+header h1{font-family:'Bebas Neue',sans-serif;font-size:1.9rem;letter-spacing:3px;color:var(--chalk);line-height:1}
+header .sub{font-size:.7rem;color:var(--dirt-light);letter-spacing:1.5px;text-transform:uppercase;font-weight:600}
+.hdr-icon{font-size:2rem}
+
+nav{display:flex;background:var(--panel);border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav button{flex:1;min-width:105px;padding:12px 10px;background:none;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:.77rem;font-weight:600;letter-spacing:.4px;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;text-transform:uppercase;white-space:nowrap}
+nav button.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(240,192,64,.06)}
+nav button:hover:not(.active){color:var(--text)}
+
+main{max-width:1000px;margin:0 auto;padding:20px 14px}
+.page{display:none}
+.page.active{display:block}
+
+.section-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;color:var(--chalk);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.section-title::after{content:'';flex:1;height:1px;background:linear-gradient(to right,var(--border),transparent)}
+.lbl{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;font-weight:600;margin-bottom:3px}
+
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:16px}
+hr{border:none;border-top:1px solid var(--border);margin:12px 0}
+
+input,select,textarea{background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.88rem;padding:7px 11px;outline:none;transition:border .2s}
+input:focus,select:focus{border-color:var(--accent)}
+select option{background:var(--panel2)}
+
+.btn{padding:8px 16px;border-radius:6px;border:none;font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-primary{background:var(--dirt);color:var(--chalk)}.btn-primary:hover{background:var(--dirt-light)}
+.btn-green{background:var(--grass);color:var(--chalk)}.btn-green:hover{background:var(--grass-light)}
+.btn-accent{background:var(--accent);color:var(--night)}.btn-accent:hover{opacity:.85}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}.btn-ghost:hover{color:var(--text);border-color:var(--muted)}
+.btn-danger{background:transparent;color:var(--bench);border:1px solid var(--bench);padding:4px 9px;font-size:.74rem}.btn-danger:hover{background:var(--bench);color:#fff}
+.btn-sm{padding:5px 11px;font-size:.76rem}
+.btn-xs{padding:3px 8px;font-size:.71rem}
+.btn-icon{background:none;border:none;cursor:pointer;font-size:.95rem;padding:4px 6px;border-radius:4px;transition:background .15s;color:var(--muted)}.btn-icon:hover{background:var(--panel3);color:var(--text)}
+.btn-icon:disabled{opacity:.3;cursor:default}
+
+.form-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.form-group{display:flex;flex-direction:column;gap:3px}
+
+.badge{display:inline-block;font-size:.67rem;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.3px}
+.badge-bench{background:var(--bench);color:#fff}
+.badge-pref{background:rgba(45,106,45,.5);border:1px solid var(--grass-light);color:#9ae09a;font-size:.65rem}
+
+.toggle-group{display:flex;background:var(--panel2);border:1px solid var(--border);border-radius:7px;padding:3px;gap:2px}
+.toggle-group button{border:none;background:none;color:var(--muted);padding:6px 14px;border-radius:5px;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif}
+.toggle-group button.active{background:var(--panel3);color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.4)}
+
+.alert{padding:10px 14px;border-radius:7px;font-size:.83rem;margin-bottom:12px}
+.alert-warn{background:rgba(240,192,64,.1);border-left:3px solid var(--accent);color:var(--accent)}
+.alert-info{background:rgba(88,166,255,.08);border-left:3px solid var(--accent2);color:var(--accent2)}
+.alert-good{background:rgba(86,211,100,.08);border-left:3px solid var(--accent3);color:var(--accent3)}
+
+.empty{text-align:center;padding:36px;color:var(--muted);font-size:.88rem}
+.empty .icon{font-size:2.2rem;margin-bottom:8px}
+
+/* ROSTER */
+.player-row{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:7px;transition:border-color .2s}
+.player-row:hover{border-color:var(--accent2)}
+.player-row-main{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.player-number{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--dirt-light);width:30px;text-align:center;flex-shrink:0}
+.player-name{flex:1;font-weight:600;font-size:.93rem;min-width:100px}
+.player-prefs{display:flex;gap:4px;flex-wrap:wrap}
+.player-edit-panel{display:none;border-top:1px solid var(--border);margin-top:10px;padding-top:12px}
+.player-edit-panel.open{display:block}
+.pos-pref-grid{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.pos-pref-btn{background:var(--panel3);border:1px solid var(--border);border-radius:5px;color:var(--muted);font-size:.71rem;font-weight:600;padding:4px 9px;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif}
+.pos-pref-btn.rank1{background:rgba(240,192,64,.2);border-color:var(--accent);color:var(--accent)}
+.pos-pref-btn.rank2{background:rgba(88,166,255,.15);border-color:var(--accent2);color:var(--accent2)}
+.pos-pref-btn.rank3{background:rgba(86,211,100,.12);border-color:var(--accent3);color:var(--accent3)}
+
+/* POSITIONS PAGE */
+.inning-tabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.inning-tab{background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:.76rem;font-weight:600;padding:6px 12px;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif;white-space:nowrap}
+.inning-tab.active{background:rgba(240,192,64,.12);border-color:var(--accent);color:var(--accent)}
+.inning-tab.all-tab{border-style:dashed}
+
+/* List view */
+.pos-list-row{display:grid;grid-template-columns:170px 1fr;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:9px 14px;margin-bottom:6px}
+.pos-list-row.bench-row{border-color:rgba(201,64,64,.35);background:rgba(201,64,64,.05)}
+.pos-lbl{font-family:'Bebas Neue',sans-serif;font-size:.93rem;letter-spacing:1px;color:var(--dirt-light)}
+.bench-lbl{color:var(--bench-light)}
+
+/* All innings table */
+.overflow-x{overflow-x:auto}
+.ai-table{width:100%;border-collapse:collapse;font-size:.79rem;white-space:nowrap}
+.ai-table th{padding:8px 10px;background:var(--panel3);color:var(--muted);font-size:.67rem;text-transform:uppercase;letter-spacing:.7px;border-bottom:1px solid var(--border);text-align:left}
+.ai-table td{padding:8px 10px;border-bottom:1px solid rgba(48,54,61,.4);vertical-align:middle}
+.ai-table tr:hover td{background:rgba(255,255,255,.02)}
+.cell-bench{background:rgba(201,64,64,.12);border-radius:4px;color:var(--bench-light);padding:2px 7px;font-size:.71rem;font-weight:700;display:inline-block}
+.cell-pos{color:var(--grass-light);font-weight:500}
+
+/* FIELD VIEW */
+.field-wrap{position:relative;width:100%;max-width:620px;margin:0 auto}
+.field-svg{width:100%;display:block}
+.field-overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+.fp{position:absolute;transform:translate(-50%,-50%);text-align:center}
+.fp-badge{display:inline-block;background:rgba(20,50,20,.85);border:2px solid var(--grass-light);border-radius:7px;padding:3px 8px;font-size:.7rem;font-weight:700;color:#fff;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.55);line-height:1.35;backdrop-filter:blur(2px)}
+.fp-badge.empty-fp{background:rgba(20,30,40,.75);border-color:var(--border2);color:var(--muted2);font-weight:400}
+.fp-badge.bench-fp{background:rgba(100,20,20,.7);border-color:var(--bench);color:#ffaaaa}
+.fp-lbl{font-size:.57rem;color:rgba(255,255,255,.45);letter-spacing:.5px;text-transform:uppercase;margin-top:1px}
+
+/* BATTING */
+.batter-row{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:9px 14px;margin-bottom:6px;transition:all .2s;cursor:grab}
+.batter-row:active{cursor:grabbing;opacity:.75}
+.batter-row.next-up{border-color:var(--accent);background:rgba(240,192,64,.07)}
+.batter-spot{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--dirt-light);width:28px;text-align:center;flex-shrink:0}
+.batter-spot.nxt{color:var(--accent)}
+.batter-info{flex:1}
+.batter-name{font-weight:600;font-size:.91rem}
+.batter-pos-tag{font-size:.71rem;color:var(--muted);margin-top:1px}
+.next-pill{background:var(--accent);color:var(--night);font-size:.65rem;font-weight:800;padding:2px 9px;border-radius:20px;letter-spacing:.4px;flex-shrink:0}
+
+/* STATS */
+.stats-table{width:100%;border-collapse:collapse;font-size:.84rem}
+.stats-table th{text-align:left;padding:9px 12px;color:var(--muted);font-size:.69rem;text-transform:uppercase;letter-spacing:.7px;border-bottom:1px solid var(--border);white-space:nowrap}
+.stats-table td{padding:9px 12px;border-bottom:1px solid rgba(48,54,61,.4);vertical-align:middle}
+.stats-table tr:hover td{background:rgba(255,255,255,.02)}
+.bench-bar-wrap{background:var(--panel3);border-radius:20px;height:7px;width:88px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:8px}
+.bench-bar{height:100%;border-radius:20px;background:linear-gradient(to right,var(--bench),var(--bench-light));transition:width .4s}
+
+/* EDIT MODE */
+.edit-banner{display:none;background:rgba(88,166,255,.1);border:1px solid var(--accent2);border-radius:8px;padding:10px 14px;margin-bottom:14px;align-items:center;gap:10px;flex-wrap:wrap}
+.edit-banner.visible{display:flex}
+.edit-banner-lbl{font-size:.82rem;color:var(--accent2);font-weight:600;flex:1}
+
+/* HISTORY */
+.game-hcard{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:10px}
+.game-date-tag{background:var(--grass);color:var(--chalk);font-size:.69rem;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.4px}
+.mini-tag{background:var(--panel);border:1px solid var(--border);border-radius:5px;font-size:.72rem;padding:3px 8px;color:var(--muted);display:inline-block;margin:2px}
+.mini-tag b{color:var(--text)}
+
+@media(max-width:580px){
+  .pos-list-row{grid-template-columns:130px 1fr}
+  header h1{font-size:1.5rem}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="hdr-icon">⚾</span>
+  <div>
+    <h1>Diamond Manager</h1>
+    <span class="sub">Youth Baseball · Lineup &amp; Bench Tracker</span>
+  </div>
+</header>
+
+<nav id="main-nav">
+  <button class="active" onclick="showPage('roster',this)">👥 Roster</button>
+  <button onclick="showPage('positions',this)">🏟️ Game Positions</button>
+  <button onclick="showPage('batting',this)">🏏 Batting Order</button>
+  <button onclick="showPage('stats',this)">📊 Bench Stats</button>
+  <button onclick="showPage('history',this)">📋 History</button>
+</nav>
+
+<main>
+
+<!-- ═══ ROSTER ═══ -->
+<div id="page-roster" class="page active">
+  <div class="section-title">Team Roster</div>
+  <div class="card">
+    <div class="form-row" style="margin-bottom:14px">
+      <div class="form-group"><div class="lbl">Jersey #</div><input type="number" id="new-number" placeholder="12" style="width:76px" min="0" max="99"></div>
+      <div class="form-group"><div class="lbl">Player Name</div><input type="text" id="new-name" placeholder="First Last" style="width:190px"></div>
+      <button class="btn btn-primary" onclick="addPlayer()">+ Add Player</button>
+    </div>
+    <div id="roster-list"></div>
+    <div class="empty" id="roster-empty"><div class="icon">🧤</div>Add players to get started!</div>
+  </div>
+</div>
+
+<!-- ═══ POSITIONS ═══ -->
+<div id="page-positions" class="page">
+  <div class="section-title">Game Positions</div>
+  <div class="card">
+    <div class="form-row" style="margin-bottom:14px;gap:12px">
+      <div class="form-group"><div class="lbl">Game Date</div><input type="date" id="game-date"></div>
+      <div class="form-group"><div class="lbl">Innings</div>
+        <select id="game-innings" onchange="onInningsChange()">
+          <option value="3">3</option><option value="4">4</option><option value="5">5</option>
+          <option value="6">6</option><option value="7" selected>7</option><option value="8">8</option><option value="9">9</option>
+        </select>
+      </div>
+      <div style="flex:1"></div>
+      <div class="toggle-group" id="view-toggle">
+        <button class="active" onclick="setViewMode('list',this)">☰ List</button>
+        <button onclick="setViewMode('field',this)">🏟️ Field</button>
+      </div>
+      <button class="btn btn-accent" id="save-game-btn" onclick="saveGame()">💾 Save Game</button>
+    </div>
+    <div class="edit-banner" id="edit-banner">
+      <span class="edit-banner-lbl">✏️ Editing saved game — changes will overwrite the original when you save.</span>
+      <button class="btn btn-ghost btn-sm" onclick="cancelEditGame()">✕ Cancel Edit</button>
+    </div>
+    <div class="inning-tabs" id="inning-tabs"></div>
+
+    <!-- List view -->
+    <div id="list-view">
+      <div id="pos-list-content"></div>
+    </div>
+
+    <!-- Field view -->
+    <div id="field-view" style="display:none">
+      <div class="field-wrap" id="field-wrap">
+        <svg class="field-svg" viewBox="0 0 620 570" xmlns="http://www.w3.org/2000/svg">
+          <!-- sky bg -->
+          <rect width="620" height="570" fill="#192a1a" rx="10"/>
+          <!-- outfield grass -->
+          <ellipse cx="310" cy="480" rx="320" ry="310" fill="#2a5a1a"/>
+          <!-- infield dirt -->
+          <ellipse cx="310" cy="400" rx="165" ry="148" fill="#8a5520"/>
+          <!-- infield grass -->
+          <ellipse cx="310" cy="400" rx="128" ry="116" fill="#2d6a2d"/>
+          <!-- foul lines -->
+          <line x1="310" y1="520" x2="5" y2="55" stroke="rgba(245,240,232,.3)" stroke-width="2"/>
+          <line x1="310" y1="520" x2="615" y2="55" stroke="rgba(245,240,232,.3)" stroke-width="2"/>
+          <!-- base paths -->
+          <polygon points="310,300 215,400 310,500 405,400" fill="#c8803a" opacity="0.45"/>
+          <!-- bases -->
+          <rect x="301" y="291" width="18" height="18" fill="#f5f0e8" rx="2"/>
+          <rect x="206" y="391" width="18" height="18" fill="#f5f0e8" rx="2"/>
+          <rect x="396" y="391" width="18" height="18" fill="#f5f0e8" rx="2"/>
+          <!-- home plate -->
+          <polygon points="310,521 299,509 299,496 321,496 321,509" fill="#f5f0e8"/>
+          <!-- mound -->
+          <ellipse cx="310" cy="392" rx="15" ry="13" fill="#b87030"/>
+          <rect x="302" y="388" width="15" height="5" fill="#f5f0e8" rx="1"/>
+        </svg>
+        <div class="field-overlay" id="field-overlay"></div>
+      </div>
+      <div style="margin-top:14px" id="field-bench-area"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ BATTING ═══ -->
+<div id="page-batting" class="page">
+  <div class="section-title">Batting Order</div>
+  <div class="card">
+    <div class="form-row" style="margin-bottom:12px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div class="lbl" style="margin-bottom:3px">First Batter Next Game</div>
+        <div id="carried-info" style="font-size:.85rem;color:var(--muted)">Not set</div>
+      </div>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost btn-sm" onclick="resetBattingOrder()">↺ Reset</button>
+      <button class="btn btn-accent btn-sm" onclick="saveBattingOrder()">💾 Save Order</button>
+    </div>
+    <div id="batting-list"></div>
+    <div class="empty" id="batting-empty"><div class="icon">🏏</div>Add players to build the batting order!</div>
+    <p style="margin-top:10px;font-size:.76rem;color:var(--muted)">↕ Drag to reorder &nbsp;·&nbsp; Positions update live from Game Positions tab</p>
+  </div>
+  <div class="card">
+    <div class="section-title" style="font-size:1rem;margin-bottom:8px">Continuous Order Pointer</div>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:10px">Set who bats first next game to maintain the continuous batting order across games.</p>
+    <div class="form-group">
+      <div class="lbl">Next game's leadoff batter</div>
+      <select id="next-batter-sel" onchange="setNextBatter(this.value)" style="width:220px">
+        <option value="">-- select player --</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ STATS ═══ -->
+<div id="page-stats" class="page">
+  <div class="section-title">Bench Stats</div>
+  <div id="fairness-alert" class="alert alert-warn" style="display:none"></div>
+  <div class="card">
+    <table class="stats-table">
+      <thead><tr><th>#</th><th>Player</th><th>Games</th><th>Inn. Benched</th><th>Bench %</th><th>Fairness</th></tr></thead>
+      <tbody id="stats-body"></tbody>
+    </table>
+    <div class="empty" id="stats-empty"><div class="icon">📊</div>Save some games to see bench stats!</div>
+  </div>
+</div>
+
+<!-- ═══ HISTORY ═══ -->
+<div id="page-history" class="page">
+  <div class="section-title">Game History</div>
+  <div id="history-list"></div>
+  <div class="empty" id="history-empty"><div class="icon">📋</div>No games saved yet.</div>
+</div>
+
+</main>
+<script>
+// ═══════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════
+const POSITIONS = ['Pitcher','Catcher','1st Base','2nd Base','3rd Base','Shortstop',
+                   'Left Field','Left Center Field','Right Center Field','Right Field'];
+const BENCH = 'Bench';
+
+// Field positions as % of SVG viewBox 620x570
+const FIELD_POS = {
+  'Pitcher':            {x:50,  y:69},
+  'Catcher':            {x:50,  y:94},
+  '1st Base':           {x:68,  y:73},
+  '2nd Base':           {x:59,  y:57},
+  'Shortstop':          {x:41,  y:57},
+  '3rd Base':           {x:32,  y:73},
+  'Left Field':         {x:15,  y:35},
+  'Left Center Field':  {x:35,  y:22},
+  'Right Center Field': {x:65,  y:22},
+  'Right Field':        {x:85,  y:35},
+};
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let store = JSON.parse(localStorage.getItem('diamond_v3') || 'null') || {
+  players: [],       // {id, number, name, prefPositions:[]}
+  games: [],         // {id, date, innings:[{pid:pos,...},...]}
+  battingOrder: [],  // [playerId,...]
+  nextBatterId: null
+};
+function persist(){ localStorage.setItem('diamond_v3', JSON.stringify(store)); }
+
+// Current unsaved game
+let curInnings = 7;
+let curLineup  = [];  // [{pid:pos}] one per inning
+let curInnIdx  = 1;   // 1-based; 0 = "all"
+let viewMode   = 'list';
+let editingGameId = null; // id of game being edited, or null for new game
+
+// ═══════════════════════════════════════════
+// NAV
+// ═══════════════════════════════════════════
+function showPage(name, btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(name==='positions') initPositionsPage();
+  if(name==='batting')   renderBatting();
+  if(name==='stats')     renderStats();
+  if(name==='history')   renderHistory();
+}
+
+// ═══════════════════════════════════════════
+// ROSTER
+// ═══════════════════════════════════════════
+function addPlayer(){
+  const num  = document.getElementById('new-number').value.trim();
+  const name = document.getElementById('new-name').value.trim();
+  if(!name){ alert('Enter a player name.'); return; }
+  const p = {id:Date.now(), number:num||'?', name, prefPositions:[]};
+  store.players.push(p);
+  store.battingOrder.push(p.id);
+  // add to current lineup
+  curLineup.forEach(inn=>{ inn[p.id]=''; });
+  persist();
+  document.getElementById('new-name').value='';
+  document.getElementById('new-number').value='';
+  renderRoster();
+}
+
+function removePlayer(id){
+  if(!confirm('Remove this player?')) return;
+  store.players = store.players.filter(p=>p.id!==id);
+  store.battingOrder = store.battingOrder.filter(i=>i!==id);
+  if(store.nextBatterId===id) store.nextBatterId=null;
+  curLineup.forEach(inn=>{ delete inn[id]; });
+  persist(); renderRoster();
+}
+
+function toggleEdit(id){
+  document.getElementById('ep-'+id).classList.toggle('open');
+}
+
+function savePlayerEdit(id){
+  const p = store.players.find(pl=>pl.id===id);
+  if(!p) return;
+  p.number = document.getElementById('en-'+id).value.trim()||'?';
+  p.name   = document.getElementById('enm-'+id).value.trim()||p.name;
+  persist(); renderRoster();
+}
+
+function togglePref(pid, pos){
+  const p = store.players.find(pl=>pl.id===pid);
+  if(!p) return;
+  const idx = p.prefPositions.indexOf(pos);
+  if(idx!==-1) p.prefPositions.splice(idx,1);
+  else { if(p.prefPositions.length>=3) p.prefPositions.shift(); p.prefPositions.push(pos); }
+  persist();
+  // re-render just buttons
+  const cont = document.getElementById('pb-'+pid);
+  if(cont) cont.innerHTML = buildPrefBtns(p);
+}
+
+function buildPrefBtns(p){
+  return POSITIONS.map(pos=>{
+    const r = p.prefPositions.indexOf(pos);
+    const cls = r===0?'rank1':r===1?'rank2':r===2?'rank3':'';
+    const suffix = r>=0?` <span style="font-size:.63rem">#${r+1}</span>`:'';
+    return `<button class="pos-pref-btn ${cls}" onclick="togglePref(${p.id},'${pos}')">${pos}${suffix}</button>`;
+  }).join('');
+}
+
+function getBenchInn(pid){
+  let t=0;
+  store.games.forEach(g=>g.innings.forEach(inn=>{ if(inn[pid]===BENCH) t++; }));
+  return t;
+}
+
+function renderRoster(){
+  const list  = document.getElementById('roster-list');
+  const empty = document.getElementById('roster-empty');
+  if(!store.players.length){ list.innerHTML=''; empty.style.display=''; return; }
+  empty.style.display='none';
+  const sorted = [...store.players].sort((a,b)=>parseInt(a.number)-parseInt(b.number));
+  list.innerHTML = sorted.map(p=>{
+    const bi = getBenchInn(p.id);
+    const prefs = p.prefPositions.map((pos,i)=>`<span class="badge badge-pref">${i+1}. ${pos}</span>`).join('');
+    return `<div class="player-row">
+      <div class="player-row-main">
+        <span class="player-number">${p.number}</span>
+        <span class="player-name">${p.name}</span>
+        <div class="player-prefs">${prefs}</div>
+        ${bi>0?`<span class="badge badge-bench">🪑 ${bi} inn</span>`:''}
+        <button class="btn-icon" onclick="toggleEdit(${p.id})" title="Edit player">✏️</button>
+        <button class="btn btn-danger btn-xs" onclick="removePlayer(${p.id})">✕</button>
+      </div>
+      <div class="player-edit-panel" id="ep-${p.id}">
+        <div class="form-row" style="margin-bottom:10px">
+          <div class="form-group"><div class="lbl">Jersey #</div><input id="en-${p.id}" type="number" value="${p.number}" style="width:70px"></div>
+          <div class="form-group"><div class="lbl">Name</div><input id="enm-${p.id}" type="text" value="${p.name}" style="width:185px"></div>
+          <button class="btn btn-green btn-sm" onclick="savePlayerEdit(${p.id})">Save</button>
+        </div>
+        <div class="lbl">Top 3 Positions (click to rank — 🥇gold 🥈blue 🥉green)</div>
+        <div class="pos-pref-grid" id="pb-${p.id}">${buildPrefBtns(p)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════
+// POSITIONS PAGE
+// ═══════════════════════════════════════════
+function initPositionsPage(){
+  if(!document.getElementById('game-date').value)
+    document.getElementById('game-date').valueAsDate = new Date();
+  curInnings = parseInt(document.getElementById('game-innings').value);
+  if(!curLineup.length) resetCurLineup();
+  updateEditUI();
+  buildInningTabs();
+  renderCurrentView();
+}
+
+function updateEditUI(){
+  const banner = document.getElementById('edit-banner');
+  const btn    = document.getElementById('save-game-btn');
+  if(editingGameId){
+    banner.classList.add('visible');
+    btn.textContent = '💾 Update Game';
+  } else {
+    banner.classList.remove('visible');
+    btn.textContent = '💾 Save Game';
+  }
+}
+
+function resetCurLineup(){
+  curLineup = Array.from({length:curInnings},()=>{
+    const inn={};
+    store.players.forEach(p=>inn[p.id]='');
+    return inn;
+  });
+}
+
+function onInningsChange(){
+  const n = parseInt(document.getElementById('game-innings').value);
+  while(curLineup.length < n){
+    const inn={}; store.players.forEach(p=>inn[p.id]=''); curLineup.push(inn);
+  }
+  curLineup = curLineup.slice(0,n);
+  curInnings = n;
+  if(curInnIdx > n) curInnIdx = 1;
+  buildInningTabs(); renderCurrentView();
+}
+
+function buildInningTabs(){
+  const el = document.getElementById('inning-tabs');
+  let h = `<button class="inning-tab all-tab ${curInnIdx===0?'active':''}" onclick="selInning(0)">All Innings</button>`;
+  for(let i=1;i<=curInnings;i++)
+    h += `<button class="inning-tab ${curInnIdx===i?'active':''}" onclick="selInning(${i})">Inning ${i}</button>`;
+  el.innerHTML = h;
+}
+
+function selInning(idx){
+  // Field view requires specific inning
+  if(viewMode==='field' && idx===0) idx=1;
+  curInnIdx = idx;
+  buildInningTabs(); renderCurrentView();
+}
+
+function setViewMode(mode, btn){
+  viewMode = mode;
+  document.querySelectorAll('#view-toggle button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(mode==='field' && curInnIdx===0) curInnIdx=1;
+  buildInningTabs(); renderCurrentView();
+}
+
+function renderCurrentView(){
+  const lv = document.getElementById('list-view');
+  const fv = document.getElementById('field-view');
+  if(viewMode==='list'){
+    lv.style.display=''; fv.style.display='none';
+    if(curInnIdx===0) renderAllInningsTable();
+    else renderListView(curInnIdx-1);
+  } else {
+    lv.style.display='none'; fv.style.display='';
+    renderFieldView(curInnIdx-1);
+  }
+}
+
+// ── List single inning ──
+function renderListView(i){
+  const el = document.getElementById('pos-list-content');
+  if(!store.players.length){ el.innerHTML='<div class="empty"><div class="icon">🧤</div>Add players to the roster first.</div>'; return; }
+  const lineup = curLineup[i];
+  let h = '';
+  POSITIONS.forEach(pos=>{
+    const pid = Object.entries(lineup).find(([k,v])=>v===pos)?.[0];
+    h += `<div class="pos-list-row">
+      <span class="pos-lbl">${pos}</span>
+      <select onchange="assignPos(${i},this.value,'${pos}')">
+        <option value="">-- unassigned --</option>
+        ${store.players.map(p=>{
+          const cur=lineup[p.id];
+          const taken = cur && cur!==pos;
+          return `<option value="${p.id}" ${pid&&parseInt(pid)===p.id?'selected':''} ${taken?'style="color:var(--muted2)"':''}>${p.number} ${p.name}${taken?' ('+cur+')':''}</option>`;
+        }).join('')}
+      </select>
+    </div>`;
+  });
+
+  // Bench section
+  const benched   = store.players.filter(p=>lineup[p.id]===BENCH);
+  const unassigned = store.players.filter(p=>!lineup[p.id]);
+  h += `<div class="pos-list-row bench-row" style="display:block;padding:10px 14px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:${benched.length?'8px':'0'}">
+      <span class="pos-lbl bench-lbl">🪑 Bench</span>
+      ${unassigned.length?`<select style="font-size:.8rem" onchange="addBench(${i},this.value);this.value=''">
+        <option value="">+ Add player to bench...</option>
+        ${unassigned.map(p=>`<option value="${p.id}">${p.number} ${p.name}</option>`).join('')}
+      </select>`:''}
+    </div>
+    ${benched.map(p=>`<div style="display:flex;align-items:center;gap:7px;margin-top:5px">
+      <span style="font-size:.85rem;font-weight:600">${p.number} ${p.name}</span>
+      <button class="btn btn-xs btn-danger" onclick="removeBench(${i},${p.id})">✕ Remove</button>
+    </div>`).join('')}
+  </div>`;
+  el.innerHTML = h;
+}
+
+// ── All innings table ──
+function renderAllInningsTable(){
+  const el = document.getElementById('pos-list-content');
+  if(!store.players.length){ el.innerHTML='<div class="empty"><div class="icon">🧤</div>Add players to the roster first.</div>'; return; }
+  const rows = [...POSITIONS, BENCH];
+  let h = `<div class="overflow-x"><table class="ai-table"><thead><tr>
+    <th>Position</th>${curLineup.map((_,i)=>`<th>Inning ${i+1}</th>`).join('')}
+  </tr></thead><tbody>`;
+  rows.forEach(pos=>{
+    h += `<tr><td><span style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:1px;color:${pos===BENCH?'var(--bench-light)':'var(--dirt-light)'}">${pos===BENCH?'🪑 Bench':pos}</span></td>`;
+    curLineup.forEach(inn=>{
+      if(pos===BENCH){
+        const bp = store.players.filter(p=>inn[p.id]===BENCH);
+        h += `<td>${bp.map(p=>`<span class="cell-bench">${p.name}</span>`).join(' ')||'<span style="color:var(--muted2);font-size:.75rem">—</span>'}</td>`;
+      } else {
+        const pid = Object.entries(inn).find(([k,v])=>v===pos)?.[0];
+        const pl = pid ? store.players.find(p=>p.id===parseInt(pid)) : null;
+        h += `<td>${pl?`<span class="cell-pos">${pl.number} ${pl.name}</span>`:'<span style="color:var(--muted2);font-size:.75rem">—</span>'}</td>`;
+      }
+    });
+    h += '</tr>';
+  });
+  h += '</tbody></table></div>';
+  el.innerHTML = h;
+}
+
+// ── Field view ──
+function renderFieldView(i){
+  const overlay = document.getElementById('field-overlay');
+  const benchEl = document.getElementById('field-bench-area');
+  if(!store.players.length){ overlay.innerHTML=''; benchEl.innerHTML=''; return; }
+  const lineup = curLineup[i];
+  let oh = '';
+  POSITIONS.forEach(pos=>{
+    const fp = FIELD_POS[pos];
+    const pid = Object.entries(lineup).find(([k,v])=>v===pos)?.[0];
+    const pl = pid ? store.players.find(p=>p.id===parseInt(pid)) : null;
+    oh += `<div class="fp" style="left:${fp.x}%;top:${fp.y}%">
+      <div class="fp-badge ${pl?'':'empty-fp'}">${pl?`${pl.number} ${pl.name}`:pos}</div>
+      <div class="fp-lbl">${pos}</div>
+    </div>`;
+  });
+  overlay.innerHTML = oh;
+
+  const benched    = store.players.filter(p=>lineup[p.id]===BENCH);
+  const unassigned = store.players.filter(p=>!lineup[p.id]);
+  let bh = '<div style="display:flex;gap:10px;flex-wrap:wrap">';
+  if(benched.length){
+    bh += `<div class="card" style="flex:1;min-width:180px;padding:12px">
+      <div class="lbl" style="margin-bottom:7px">🪑 Bench</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${benched.map(p=>`<div style="display:flex;align-items:center;gap:5px;background:rgba(201,64,64,.13);border:1px solid rgba(201,64,64,.3);border-radius:6px;padding:4px 9px">
+          <span style="font-size:.83rem;font-weight:600">${p.number} ${p.name}</span>
+          <button class="btn-icon" style="color:var(--bench);font-size:.75rem" onclick="removeBench(${i},${p.id})">✕</button>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }
+  if(unassigned.length){
+    bh += `<div class="card" style="flex:1;min-width:200px;padding:12px">
+      <div class="lbl" style="margin-bottom:7px">Unassigned — bench:</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">
+        ${unassigned.map(p=>`<button class="btn btn-ghost btn-sm" onclick="addBench(${i},${p.id})">${p.number} ${p.name} → 🪑</button>`).join('')}
+      </div>
+    </div>`;
+  }
+  bh += '</div>';
+  benchEl.innerHTML = bh;
+}
+
+function assignPos(innIdx, playerId, position){
+  const pid = parseInt(playerId);
+  const lineup = curLineup[innIdx];
+  // Remove anyone already at this position
+  Object.keys(lineup).forEach(k=>{ if(lineup[k]===position) lineup[k]=''; });
+  if(pid) lineup[pid] = position;
+  renderCurrentView();
+  maybeUpdateBatting();
+}
+
+function addBench(innIdx, playerId){
+  const pid = parseInt(playerId);
+  if(!pid) return;
+  const lineup = curLineup[innIdx];
+  // Clear any field position
+  Object.keys(lineup).forEach(k=>{ if(parseInt(k)===pid) lineup[k]=''; });
+  lineup[pid] = BENCH;
+  renderCurrentView();
+  maybeUpdateBatting();
+}
+
+function removeBench(innIdx, playerId){
+  curLineup[innIdx][playerId]='';
+  renderCurrentView();
+}
+
+function saveGame(){
+  const date = document.getElementById('game-date').value || new Date().toISOString().slice(0,10);
+  if(!store.players.length){ alert('No players on roster!'); return; }
+
+  if(editingGameId){
+    // Overwrite the existing game
+    const idx = store.games.findIndex(g=>g.id===editingGameId);
+    if(idx!==-1){
+      store.games[idx].date    = date;
+      store.games[idx].innings = JSON.parse(JSON.stringify(curLineup));
+    }
+    editingGameId = null;
+    alert('✅ Game updated!');
+  } else {
+    store.games.push({id:Date.now(), date, innings:JSON.parse(JSON.stringify(curLineup))});
+    alert('✅ Game saved!');
+  }
+  persist();
+  curLineup = [];
+  updateEditUI();
+}
+
+function editGame(id){
+  const g = store.games.find(gm=>gm.id===id);
+  if(!g) return;
+  editingGameId = id;
+  // Load game into editor
+  curLineup  = JSON.parse(JSON.stringify(g.innings));
+  curInnings = g.innings.length;
+  curInnIdx  = 1;
+  // Update controls
+  document.getElementById('game-date').value = g.date;
+  const sel = document.getElementById('game-innings');
+  // Ensure the innings count option exists (add dynamically if needed)
+  let opt = sel.querySelector(`option[value="${curInnings}"]`);
+  if(!opt){ opt=document.createElement('option'); opt.value=curInnings; opt.textContent=curInnings; sel.appendChild(opt); }
+  sel.value = curInnings;
+  // Navigate to positions page
+  showPage('positions', document.querySelector('nav button:nth-child(2)'));
+}
+
+function cancelEditGame(){
+  editingGameId = null;
+  curLineup = [];
+  resetCurLineup();
+  updateEditUI();
+  buildInningTabs();
+  renderCurrentView();
+}
+
+// ═══════════════════════════════════════════
+// BATTING ORDER
+// ═══════════════════════════════════════════
+function maybeUpdateBatting(){
+  if(document.getElementById('page-batting').classList.contains('active')) renderBatting();
+}
+
+// Get position for a player across current lineup (from inning 1)
+function getPlayerPos(pid){
+  if(!curLineup.length) return '';
+  const v = curLineup[0][pid];
+  if(!v) return '';
+  return v===BENCH ? '🪑 Bench' : v;
+}
+
+function renderBatting(){
+  const listEl  = document.getElementById('batting-list');
+  const emptyEl = document.getElementById('batting-empty');
+  const selEl   = document.getElementById('next-batter-sel');
+
+  // Sync
+  store.players.forEach(p=>{ if(!store.battingOrder.includes(p.id)) store.battingOrder.push(p.id); });
+  store.battingOrder = store.battingOrder.filter(id=>store.players.find(p=>p.id===id));
+
+  if(!store.players.length){ listEl.innerHTML=''; emptyEl.style.display=''; selEl.innerHTML='<option value="">-- select player --</option>'; updateCarriedInfo(); return; }
+  emptyEl.style.display='none';
+
+  selEl.innerHTML = '<option value="">-- select player --</option>' +
+    store.battingOrder.map(id=>{
+      const p=store.players.find(pl=>pl.id===id);
+      return p?`<option value="${id}" ${store.nextBatterId===id?'selected':''}>${p.number} ${p.name}</option>`:'';
+    }).join('');
+
+  listEl.innerHTML = store.battingOrder.map((id,i)=>{
+    const p   = store.players.find(pl=>pl.id===id);
+    if(!p) return '';
+    const pos  = getPlayerPos(id);
+    const isNx = store.nextBatterId===id;
+    return `<div class="batter-row ${isNx?'next-up':''}" draggable="true"
+      ondragstart="dStart(event,${i})" ondragover="dOver(event)" ondrop="dDrop(event,${i})" ondragend="dEnd()">
+      <span class="batter-spot ${isNx?'nxt':''}">${i+1}</span>
+      <div class="batter-info">
+        <div class="batter-name">${p.number} ${p.name}</div>
+        ${pos?`<div class="batter-pos-tag">${pos}</div>`:''}
+      </div>
+      <div style="display:flex;gap:3px">
+        <button class="btn-icon" onclick="moveBatter(${i},-1)" ${i===0?'disabled':''}>↑</button>
+        <button class="btn-icon" onclick="moveBatter(${i},1)"  ${i===store.battingOrder.length-1?'disabled':''}>↓</button>
+      </div>
+      ${isNx?'<span class="next-pill">▶ NEXT UP</span>':''}
+    </div>`;
+  }).join('');
+  updateCarriedInfo();
+}
+
+function updateCarriedInfo(){
+  const el = document.getElementById('carried-info');
+  if(!store.nextBatterId){ el.innerHTML='<span style="color:var(--muted)">Not set — use the pointer below</span>'; return; }
+  const p = store.players.find(pl=>pl.id===store.nextBatterId);
+  el.innerHTML = p ? `<span style="color:var(--accent);font-weight:700">${p.number} ${p.name}</span> <span style="color:var(--accent3);font-size:.73rem;margin-left:4px">▶ bats first next game</span>` : 'Not set';
+}
+
+function setNextBatter(val){
+  store.nextBatterId = val ? parseInt(val) : null;
+  persist(); renderBatting();
+}
+
+function moveBatter(idx,dir){
+  const ni = idx+dir;
+  if(ni<0||ni>=store.battingOrder.length) return;
+  [store.battingOrder[idx],store.battingOrder[ni]] = [store.battingOrder[ni],store.battingOrder[idx]];
+  persist(); renderBatting();
+}
+
+function saveBattingOrder(){ persist(); alert('✅ Batting order saved!'); }
+function resetBattingOrder(){
+  if(!confirm('Reset to jersey number order?')) return;
+  store.battingOrder = [...store.players].sort((a,b)=>parseInt(a.number)-parseInt(b.number)).map(p=>p.id);
+  persist(); renderBatting();
+}
+
+// Drag & drop
+let dSrc=null;
+function dStart(e,i){ dSrc=i; e.dataTransfer.effectAllowed='move'; e.currentTarget.style.opacity='.4'; }
+function dOver(e){ e.preventDefault(); e.dataTransfer.dropEffect='move'; }
+function dEnd(){ document.querySelectorAll('.batter-row').forEach(r=>r.style.opacity=''); }
+function dDrop(e,i){
+  e.preventDefault();
+  if(dSrc===null||dSrc===i) return;
+  const moved=store.battingOrder.splice(dSrc,1)[0];
+  store.battingOrder.splice(i,0,moved);
+  dSrc=null; persist(); renderBatting();
+}
+
+// ═══════════════════════════════════════════
+// STATS
+// ═══════════════════════════════════════════
+function renderStats(){
+  const tbody = document.getElementById('stats-body');
+  const empty = document.getElementById('stats-empty');
+  const alrt  = document.getElementById('fairness-alert');
+  if(!store.players.length||!store.games.length){ tbody.innerHTML=''; empty.style.display=''; alrt.style.display='none'; return; }
+  empty.style.display='none';
+  const totalInn = store.games.reduce((s,g)=>s+g.innings.length,0);
+  const stats = store.players.map(p=>{
+    const bi=getBenchInn(p.id);
+    const g=store.games.filter(gm=>gm.innings.some(inn=>inn[p.id])).length;
+    const pct=totalInn>0?Math.round(bi/totalInn*100):0;
+    return{...p,bi,g,pct};
+  }).sort((a,b)=>b.bi-a.bi);
+  const maxB=Math.max(...stats.map(s=>s.bi),1);
+  const minB=Math.min(...stats.map(s=>s.bi));
+  const diff=maxB-minB;
+  if(diff>=2){
+    alrt.innerHTML=`⚠️ <b>${stats[0].name}</b> benched ${diff} more inning(s) than <b>${stats[stats.length-1].name}</b>. Prioritize benching <b>${stats[stats.length-1].name}</b> next game.`;
+    alrt.style.display='';
+  } else alrt.style.display='none';
+  tbody.innerHTML = stats.map(s=>{
+    const bw=maxB?Math.round(s.bi/maxB*100):0;
+    const fair=diff>=2&&s.bi===maxB?'🔴 Most':diff>=2&&s.bi===minB?'🟢 Least':'✅';
+    return`<tr>
+      <td style="font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:var(--dirt-light)">${s.number}</td>
+      <td style="font-weight:600">${s.name}</td>
+      <td style="color:var(--muted)">${s.g}</td>
+      <td>${s.bi}<span class="bench-bar-wrap"><span class="bench-bar" style="width:${bw}%"></span></span></td>
+      <td>${s.pct}%</td>
+      <td>${fair}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════
+// HISTORY
+// ═══════════════════════════════════════════
+function renderHistory(){
+  const listEl = document.getElementById('history-list');
+  const empty  = document.getElementById('history-empty');
+  if(!store.games.length){ listEl.innerHTML=''; empty.style.display=''; return; }
+  empty.style.display='none';
+  const sorted = [...store.games].sort((a,b)=>b.date.localeCompare(a.date));
+  listEl.innerHTML = sorted.map(g=>{
+    const bs=g.innings.map((inn,i)=>{
+      const bp=Object.entries(inn).filter(([k,v])=>v===BENCH).map(([k])=>{
+        const p=store.players.find(pl=>pl.id===parseInt(k)); return p?p.name:'?';
+      });
+      return bp.length?`Inn ${i+1}: ${bp.join(', ')}`:null;
+    }).filter(Boolean);
+    return`<div class="game-hcard">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <b style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:1px">${fmtDate(g.date)}</b>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="game-date-tag">${g.innings.length} innings</span>
+          <button class="btn btn-ghost btn-xs" onclick="editGame(${g.id})">✏️ Edit</button>
+          <button class="btn btn-danger btn-xs" onclick="delGame(${g.id})">Delete</button>
+        </div>
+      </div>
+      ${bs.length?`<div class="lbl" style="margin-bottom:5px">Bench assignments</div>
+        <div>${bs.map(s=>`<span class="mini-tag">🪑 <b>${s}</b></span>`).join('')}</div>`
+      :'<span class="mini-tag" style="color:var(--muted2)">No bench assignments recorded</span>'}
+    </div>`;
+  }).join('');
+}
+
+function delGame(id){
+  if(!confirm('Delete this game?')) return;
+  store.games=store.games.filter(g=>g.id!==id);
+  persist(); renderHistory();
+}
+
+function fmtDate(d){
+  return new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+renderRoster();
+</script>
+</body>
+</html>
