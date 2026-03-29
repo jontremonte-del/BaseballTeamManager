@@ -438,11 +438,37 @@ const FIELD_POS = {
 };
 
 // ═══════════════════════════════════════════════════════
-// STATE
+// STATE — with automatic migration from older storage keys
 // ═══════════════════════════════════════════════════════
-let store = JSON.parse(localStorage.getItem('diamond_v4') || 'null') || {
-  players: [], games: [], battingOrder: [], nextBatterId: null
-};
+const STORAGE_KEY = 'diamond_v4';
+const OLD_KEYS    = ['diamond_v3', 'diamond_manager']; // previous versions
+
+function loadStore() {
+  // 1. Try current key first
+  const current = localStorage.getItem(STORAGE_KEY);
+  if (current) {
+    try { return JSON.parse(current); } catch(e) {}
+  }
+  // 2. Try migrating from old keys (this is why roster was blank on existing device)
+  for (const key of OLD_KEYS) {
+    const old = localStorage.getItem(key);
+    if (old) {
+      try {
+        const data = JSON.parse(old);
+        if (data && data.players && data.players.length) {
+          console.log(`Migrating data from ${key} → ${STORAGE_KEY}`);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          // Don't delete old key in case of rollback
+          return data;
+        }
+      } catch(e) {}
+    }
+  }
+  // 3. Fresh start
+  return { players: [], games: [], battingOrder: [], nextBatterId: null };
+}
+
+let store = loadStore();
 
 // Expose for Firebase module to read local store before remote exists
 window.getLocalStore = () => store;
@@ -453,27 +479,43 @@ let curInnings = 7, curLineup = [], curInnIdx = 1, viewMode = 'list', editingGam
 // PERSIST — writes localStorage + debounced Firebase push
 // ═══════════════════════════════════════════════════════
 function persist() {
-  localStorage.setItem('diamond_v4', JSON.stringify(store));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
   clearTimeout(persist._t);
   persist._t = setTimeout(() => { if (window.fbSave) window.fbSave(store); }, 700);
 }
 
 // ═══════════════════════════════════════════════════════
 // FIREBASE INCOMING DATA HANDLER
-// This is called both on initial load (roster sync fix) and on remote changes.
+// Called on initial load from remote AND on any remote change.
 // ═══════════════════════════════════════════════════════
 window.onFirebaseData = function(data) {
   if (!data) return;
-  store = data;
-  // Ensure arrays exist (guard against old schema)
-  store.players      = store.players      || [];
-  store.games        = store.games        || [];
-  store.battingOrder = store.battingOrder || [];
-  // Write to localStorage so page reloads on this device also work
-  localStorage.setItem('diamond_v4', JSON.stringify(store));
-  // Re-render everything
-  renderAll();
-  setSyncStatus('ok', '☁️ Synced with Firebase — coaches see this in real time');
+
+  // Ensure arrays exist (guard against old/partial schema)
+  data.players      = data.players      || [];
+  data.games        = data.games        || [];
+  data.battingOrder = data.battingOrder || [];
+
+  // If remote has players and local is empty (fresh device), always take remote
+  // If both have players, take whichever has MORE players (most complete)
+  // If remote has zero players but local has some, keep local and push it up
+  const localHasData  = store.players && store.players.length > 0;
+  const remoteHasData = data.players.length > 0;
+
+  if (!remoteHasData && localHasData) {
+    // Remote is empty — push local data up to Firebase so other devices get it
+    console.log('Remote DB empty, pushing local data up');
+    if (window.fbSave) window.fbSave(store);
+    setSyncStatus('ok', '☁️ Local data pushed to Firebase — coaches will now see it');
+    return;
+  }
+
+  if (remoteHasData) {
+    store = data;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    renderAll();
+    setSyncStatus('ok', '☁️ Synced with Firebase — coaches see this in real time');
+  }
 };
 
 function renderAll() {
@@ -1158,21 +1200,29 @@ function fmtDate(d) { return new Date(d + 'T12:00:00').toLocaleDateString('en-US
 // ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
-// Check for pending Firebase data (arrived before this script ran)
+// Render immediately from whatever we loaded (local or migrated)
+renderRoster();
+renderHistory();
+renderStats();
+
+// After a short delay, check Firebase state
 setTimeout(() => {
   if (window._pendingFbData) {
+    // Firebase data arrived before this script finished — process it now
     window.onFirebaseData(window._pendingFbData);
     window._pendingFbData = null;
   } else if (window.fbConfigured) {
+    // Firebase is connected but no data arrived yet (DB may be empty)
+    // Push our local data up so it's available to other devices
+    if (store.players && store.players.length > 0) {
+      console.log('Pushing local data to Firebase on init');
+      if (window.fbSave) window.fbSave(store);
+    }
     setSyncStatus('ok', '☁️ Connected to Firebase — data syncs to coaches in real time');
   } else {
     setSyncStatus('off', '⚡ Firebase not configured — data saved locally only. See setup in History tab.');
   }
-}, 900);
-
-renderRoster();
-renderHistory();
-renderStats();
+}, 1200);
 </script>
 </body>
 </html>
