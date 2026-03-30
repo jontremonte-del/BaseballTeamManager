@@ -188,9 +188,46 @@ select option{background:var(--panel2)}
 .step-body b{color:var(--text)}
 .step-body code{background:var(--panel3);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:.77rem;color:var(--accent2);font-family:monospace}
 
+/* HOME PAGE */
+.home-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:4px}
+.home-card{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:18px 20px;cursor:pointer;transition:all .22s;text-decoration:none;display:block}
+.home-card:hover{border-color:var(--accent2);background:var(--panel3);transform:translateY(-2px)}
+.home-card-icon{font-size:1.8rem;margin-bottom:8px}
+.home-card-title{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:1.5px;color:var(--chalk);margin-bottom:4px}
+.home-card-desc{font-size:.8rem;color:var(--muted);line-height:1.55}
+.home-card.admin-card{border-color:rgba(255,107,53,.25)}
+.home-card.admin-card:hover{border-color:var(--admin)}
+.home-welcome{background:linear-gradient(135deg,rgba(45,106,45,.25) 0%,rgba(13,32,16,.6) 100%);border:1px solid rgba(45,106,45,.4);border-radius:12px;padding:24px;margin-bottom:20px}
+.home-welcome h2{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:2px;color:var(--chalk);margin-bottom:6px}
+.home-welcome p{font-size:.85rem;color:var(--muted);line-height:1.6}
+.home-status-row{display:flex;gap:16px;margin-top:14px;flex-wrap:wrap}
+.home-stat{background:rgba(0,0,0,.3);border-radius:8px;padding:10px 16px;text-align:center;flex:1;min-width:80px}
+.home-stat-num{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:var(--accent);line-height:1}
+.home-stat-lbl{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-top:2px}
+
+/* HELP MODAL */
+.help-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:2000;align-items:flex-start;justify-content:flex-end;padding:16px}
+.help-modal-overlay.open{display:flex}
+.help-modal{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:0;width:100%;max-width:420px;max-height:90vh;display:flex;flex-direction:column;margin-top:56px}
+.help-modal-hdr{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.help-modal-title{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:1.5px;color:var(--chalk);flex:1}
+.help-modal-body{padding:18px 20px;overflow-y:auto;flex:1}
+.help-section{margin-bottom:16px}
+.help-section-title{font-size:.72rem;color:var(--accent);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:6px}
+.help-item{display:flex;gap:10px;margin-bottom:8px;align-items:flex-start}
+.help-item-icon{font-size:1rem;flex-shrink:0;margin-top:1px}
+.help-item-text{font-size:.82rem;color:var(--muted);line-height:1.55}
+.help-item-text b{color:var(--text)}
+
+/* HELP BUTTON in header */
+.help-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:20px;color:var(--chalk);font-family:'DM Sans',sans-serif;font-size:.75rem;font-weight:700;padding:5px 12px;cursor:pointer;transition:all .2s;margin-left:auto;white-space:nowrap;letter-spacing:.3px}
+.help-btn:hover{background:rgba(255,255,255,.16)}
+
 @media(max-width:580px){
   .pos-list-row{grid-template-columns:120px 1fr}
   header h1{font-size:1.5rem}
+  .home-grid{grid-template-columns:1fr}
+  .help-modal{max-width:100%;margin-top:50px}
 }
 </style>
 </head>
@@ -207,10 +244,12 @@ select option{background:var(--panel2)}
     <h1>Diamond Manager</h1>
     <span class="sub">Youth Baseball · Lineup &amp; Bench Tracker</span>
   </div>
+  <button class="help-btn" onclick="openHelp()" id="help-btn">? Help</button>
 </header>
 
 <nav id="main-nav">
-  <button class="active" onclick="showPage('roster',this)">👥 Roster</button>
+  <button class="active" onclick="showPage('home',this)">🏠 Home</button>
+  <button onclick="showPage('roster',this)">👥 Roster</button>
   <button onclick="showPage('positions',this)">🏟️ Positions</button>
   <button onclick="showPage('batting',this)">🏏 Batting</button>
   <button onclick="showPage('stats',this)">📊 Stats</button>
@@ -219,6 +258,52 @@ select option{background:var(--panel2)}
 </nav>
 
 <main>
+
+<!-- ═══ HOME ═══ -->
+<div id="page-home" class="page active">
+  <div class="home-welcome">
+    <h2>⚾ Welcome, Coach!</h2>
+    <p>Diamond Manager keeps your lineup organised, your bench time fair, and your coaches in sync — all from any device.</p>
+    <div class="home-status-row">
+      <div class="home-stat"><div class="home-stat-num" id="hs-players">0</div><div class="home-stat-lbl">Players</div></div>
+      <div class="home-stat"><div class="home-stat-num" id="hs-games">0</div><div class="home-stat-lbl">Games Saved</div></div>
+      <div class="home-stat"><div class="home-stat-num" id="hs-next">—</div><div class="home-stat-lbl">Next Game</div></div>
+    </div>
+  </div>
+
+  <div class="home-grid">
+    <div class="home-card" onclick="showPage('roster', document.querySelector('nav button:nth-child(2)'))">
+      <div class="home-card-icon">👥</div>
+      <div class="home-card-title">Roster</div>
+      <div class="home-card-desc">Add and manage players. Set each player's top 3 preferred positions — used by the auto-randomizer to place kids where they play best.</div>
+    </div>
+    <div class="home-card" onclick="showPage('positions', document.querySelector('nav button:nth-child(3)'))">
+      <div class="home-card-icon">🏟️</div>
+      <div class="home-card-title">Game Positions</div>
+      <div class="home-card-desc">Plan who plays where for each inning. Use the randomizer to auto-fill positions, the field view to visualise the diamond, and Copy Plan to text the lineup to coaches.</div>
+    </div>
+    <div class="home-card" onclick="showPage('batting', document.querySelector('nav button:nth-child(4)'))">
+      <div class="home-card-icon">🏏</div>
+      <div class="home-card-title">Batting Order</div>
+      <div class="home-card-desc">Set and drag-reorder the batting lineup. Mark the next-up pointer so the continuous batting order carries correctly from game to game.</div>
+    </div>
+    <div class="home-card" onclick="showPage('stats', document.querySelector('nav button:nth-child(5)'))">
+      <div class="home-card-icon">📊</div>
+      <div class="home-card-title">Bench Stats</div>
+      <div class="home-card-desc">Tracks total bench innings per player across all saved games. A fairness indicator flags when one player has sat out significantly more than another.</div>
+    </div>
+    <div class="home-card" onclick="showPage('history', document.querySelector('nav button:nth-child(6)'))">
+      <div class="home-card-icon">📋</div>
+      <div class="home-card-title">History</div>
+      <div class="home-card-desc">Browse every saved game. Edit a past game's positions, copy the plan as a text message, or delete games you no longer need.</div>
+    </div>
+    <div class="home-card admin-card" onclick="showPage('admin', document.querySelector('nav button:nth-child(7)'))">
+      <div class="home-card-icon">⚙️</div>
+      <div class="home-card-title">Admin</div>
+      <div class="home-card-desc">Start a new season (archives current data), restore a previous season, and view Firebase sync status. Use at the start of each new year.</div>
+    </div>
+  </div>
+</div>
 
 <!-- ═══ ROSTER ═══ -->
 <div id="page-roster" class="page active">
@@ -254,6 +339,7 @@ select option{background:var(--panel2)}
     </div>
     <div class="form-row" style="margin-bottom:14px;gap:8px;flex-wrap:wrap">
       <button class="btn btn-purple btn-sm" onclick="randomizePositions()">🎲 Randomize Remaining</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearAllPositions()">✕ Clear All</button>
       <button class="btn btn-blue btn-sm" onclick="openCopyModal(curLineup, document.getElementById('game-date').value)">📋 Copy Plan</button>
       <div style="flex:1"></div>
       <button class="btn btn-accent" id="save-game-btn" onclick="saveGame()">💾 Save Game</button>
@@ -386,6 +472,17 @@ select option{background:var(--panel2)}
 </div>
 
 </main>
+
+<!-- Help modal -->
+<div class="help-modal-overlay" id="help-modal">
+  <div class="help-modal">
+    <div class="help-modal-hdr">
+      <span class="help-modal-title" id="help-modal-title">Help</span>
+      <button class="btn-icon" onclick="closeHelp()" style="font-size:1.1rem">✕</button>
+    </div>
+    <div class="help-modal-body" id="help-modal-body"></div>
+  </div>
+</div>
 
 <!-- Copy modal -->
 <div class="modal-overlay" id="copy-modal">
@@ -563,6 +660,7 @@ window.onFirebaseData = function(data) {
 };
 
 function renderAll() {
+  renderHome();
   renderRoster();
   renderHistory();
   renderStats();
@@ -570,6 +668,170 @@ function renderAll() {
   if (document.getElementById('page-positions').classList.contains('active')) renderCurrentView();
   if (document.getElementById('page-admin').classList.contains('active')) renderAdmin();
 }
+
+// ═══════════════════════════════════════════════════════
+// HOME PAGE
+// ═══════════════════════════════════════════════════════
+function renderHome() {
+  document.getElementById('hs-players').textContent = store.players.length;
+  document.getElementById('hs-games').textContent   = store.games.length;
+  const today    = new Date().toISOString().slice(0, 10);
+  const nextGame = store.games.filter(g => g.date >= today).sort((a,b) => a.date.localeCompare(b.date))[0];
+  const el = document.getElementById('hs-next');
+  if (nextGame) {
+    const d = new Date(nextGame.date + 'T12:00:00');
+    el.textContent = d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+    el.style.fontSize = '1.1rem';
+  } else {
+    el.textContent = '—';
+    el.style.fontSize = '1.6rem';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// HELP SYSTEM
+// ═══════════════════════════════════════════════════════
+const HELP_CONTENT = {
+  home: {
+    title: '🏠 Home — Overview',
+    sections: [
+      { title: 'Getting Started', items: [
+        { icon: '👥', text: '<b>Add your roster first</b> — tap Roster and enter each player\'s name and jersey number.' },
+        { icon: '⭐', text: '<b>Set position preferences</b> — expand a player\'s edit panel to rank their top 3 positions. The randomizer uses these.' },
+        { icon: '🏟️', text: '<b>Plan a game</b> — go to Positions, pick a date and innings, assign players, then Save Game.' },
+        { icon: '☁️', text: '<b>Share with coaches</b> — once Firebase is connected (green sync bar), every coach sees updates instantly on their device.' },
+      ]},
+      { title: 'Quick Tips', items: [
+        { icon: '💡', text: 'The <b>? Help</b> button in the top-right always shows tips for whichever tab you\'re on.' },
+        { icon: '💡', text: 'Tap any card on this page to jump straight to that section.' },
+        { icon: '💡', text: 'Use <b>Admin → Start New Season</b> at the beginning of each year to archive old data and start fresh.' },
+      ]},
+    ]
+  },
+  roster: {
+    title: '👥 Roster — Help',
+    sections: [
+      { title: 'Managing Players', items: [
+        { icon: '➕', text: '<b>Adding a player</b> — enter a jersey number and full name, then tap + Add Player.' },
+        { icon: '✏️', text: '<b>Editing a player</b> — tap the pencil icon ✏️ to expand the edit panel. Change name or number and tap Save.' },
+        { icon: '✕', text: '<b>Removing a player</b> — tap the red ✕ button. This removes them from all future lineup assignments.' },
+      ]},
+      { title: 'Position Preferences', items: [
+        { icon: '🥇', text: '<b>Gold (#1)</b> — the player\'s most preferred position. The randomizer gives this the highest priority (10 pts).' },
+        { icon: '🥈', text: '<b>Blue (#2)</b> — second preference (6 pts).' },
+        { icon: '🥉', text: '<b>Green (#3)</b> — third preference (3 pts).' },
+        { icon: '💡', text: 'Click a position to select it, click again to deselect. Adding a 4th auto-removes the oldest pick.' },
+      ]},
+    ]
+  },
+  positions: {
+    title: '🏟️ Game Positions — Help',
+    sections: [
+      { title: 'Workflow', items: [
+        { icon: '📅', text: '<b>Next game auto-loads</b> — if you have a saved future game, it opens automatically for editing.' },
+        { icon: '🎲', text: '<b>Randomize Remaining</b> — fills all unassigned positions using each player\'s preferences, keeping bench time fair across games.' },
+        { icon: '✕', text: '<b>Clear All</b> — wipes position assignments for the current inning view (or all innings if "All Innings" is selected).' },
+        { icon: '💾', text: '<b>Save Game</b> — saves the game. If you loaded a future game it updates it in place.' },
+      ]},
+      { title: 'Views & Navigation', items: [
+        { icon: '☰', text: '<b>List view</b> — dropdowns for each position. Use the bench section at the bottom to sit players.' },
+        { icon: '🏟️', text: '<b>Field view</b> — visual diamond showing who\'s at each position. Tap a player badge to bench them.' },
+        { icon: '🔢', text: '<b>Inning tabs</b> — click any inning number to edit that inning. "All Innings" shows a summary table.' },
+        { icon: '📋', text: '<b>Copy Plan</b> — generates a text summary of all innings + batting order, ready to paste into a message.' },
+      ]},
+      { title: 'Randomizer Rules', items: [
+        { icon: '🔒', text: '<b>Pitcher, Catcher, and 1st Base are locked</b> — the randomizer never reassigns these.' },
+        { icon: '⚖️', text: '<b>Bench fairness</b> — players who have sat out most across saved games are prioritised for bench in the current game.' },
+        { icon: '⭐', text: '<b>Preference scoring</b> — players are placed at positions matching their ranked preferences wherever possible.' },
+      ]},
+    ]
+  },
+  batting: {
+    title: '🏏 Batting Order — Help',
+    sections: [
+      { title: 'Managing the Order', items: [
+        { icon: '↕️', text: '<b>Drag to reorder</b> — grab any row and drag it up or down to change the batting position.' },
+        { icon: '↑↓', text: '<b>Arrow buttons</b> — use the ↑ ↓ buttons to move a player one spot at a time.' },
+        { icon: '↺', text: '<b>Reset</b> — resets the order to jersey number sequence.' },
+      ]},
+      { title: 'Continuous Order', items: [
+        { icon: '▶', text: '<b>Next Up pointer</b> — marks which player bats first in the next game, maintaining the continuous order across games.' },
+        { icon: '💡', text: 'After each game, find the player who would have batted next and mark them as Next Up using the dropdown at the bottom.' },
+        { icon: '💡', text: 'Positions shown next to each player reflect inning 1 of your current game plan.' },
+      ]},
+    ]
+  },
+  stats: {
+    title: '📊 Bench Stats — Help',
+    sections: [
+      { title: 'Understanding the Data', items: [
+        { icon: '🪑', text: '<b>Inn. Benched</b> — total innings that player has sat on the bench across all saved games this season.' },
+        { icon: '📊', text: '<b>Bench %</b> — bench innings as a percentage of total game innings played.' },
+        { icon: '🔴', text: '<b>Most</b> — this player has been benched the most. The randomizer will prioritise playing time for them.' },
+        { icon: '🟢', text: '<b>Least</b> — this player has had the most playing time. They\'re a candidate for next bench.' },
+      ]},
+      { title: 'Tips', items: [
+        { icon: '💡', text: 'Stats only count games that have been <b>saved</b> via the Positions tab.' },
+        { icon: '💡', text: 'Use <b>Admin → Start New Season</b> to reset stats at the beginning of a new year.' },
+        { icon: '💡', text: 'The fairness warning appears when the gap between most-benched and least-benched is 2+ innings.' },
+      ]},
+    ]
+  },
+  history: {
+    title: '📋 History — Help',
+    sections: [
+      { title: 'Game Records', items: [
+        { icon: '✏️', text: '<b>Edit</b> — reopen a saved game in the Positions tab to update any assignments.' },
+        { icon: '📋', text: '<b>Copy Plan</b> — generates a shareable text summary of positions and batting order for that game.' },
+        { icon: '🗑️', text: '<b>Delete</b> — permanently removes the game record. Bench stats are recalculated automatically.' },
+      ]},
+      { title: 'Tips', items: [
+        { icon: '💡', text: 'Games are sorted newest first.' },
+        { icon: '💡', text: 'The bench assignments shown on each card are a quick summary — tap Edit for full detail.' },
+      ]},
+    ]
+  },
+  admin: {
+    title: '⚙️ Admin — Help',
+    sections: [
+      { title: 'Season Management', items: [
+        { icon: '🗄️', text: '<b>Archive & Start New Season</b> — enter a season name, then tap the button. All current data is saved to the archive and the app resets to a blank state.' },
+        { icon: '↩', text: '<b>Load a season</b> — restores an archived season as the active data. Use this if you need to review or edit a past season.' },
+        { icon: '✕', text: '<b>Delete archive</b> — permanently removes an archived season.' },
+        { icon: '💡', text: 'Up to 10 seasons are stored. The oldest is removed automatically when you exceed that limit.' },
+      ]},
+      { title: 'Firebase Sync', items: [
+        { icon: '🟢', text: '<b>Green sync bar</b> — Firebase is connected and all devices sync in real time.' },
+        { icon: '🟡', text: '<b>Yellow sync bar</b> — Firebase not configured. Data is local only.' },
+        { icon: '🔥', text: 'Expand "Show setup instructions" to configure Firebase for the first time.' },
+      ]},
+    ]
+  },
+};
+
+function openHelp() {
+  const content = HELP_CONTENT[currentPage] || HELP_CONTENT['home'];
+  document.getElementById('help-modal-title').textContent = content.title;
+  document.getElementById('help-modal-body').innerHTML = content.sections.map(sec => `
+    <div class="help-section">
+      <div class="help-section-title">${sec.title}</div>
+      ${sec.items.map(item => `
+        <div class="help-item">
+          <span class="help-item-icon">${item.icon}</span>
+          <span class="help-item-text">${item.text}</span>
+        </div>`).join('')}
+    </div>`).join('');
+  document.getElementById('help-modal').classList.add('open');
+}
+
+function closeHelp() {
+  document.getElementById('help-modal').classList.remove('open');
+}
+
+// Close help modal on backdrop click
+document.getElementById('help-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeHelp();
+});
 
 // ═══════════════════════════════════════════════════════
 // SYNC STATUS
@@ -588,11 +850,14 @@ function showPage(name, btn) {
   document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
   if (btn) btn.classList.add('active');
+  if (name === 'home')      renderHome();
   if (name === 'positions') initPositionsPage();
   if (name === 'batting')   renderBatting();
   if (name === 'stats')     renderStats();
   if (name === 'history')   renderHistory();
   if (name === 'admin')     renderAdmin();
+  // Update help button context
+  currentPage = name;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -699,11 +964,54 @@ function renderRoster() {
 // POSITIONS PAGE
 // ═══════════════════════════════════════════════════════
 function initPositionsPage() {
-  if (!document.getElementById('game-date').value)
-    document.getElementById('game-date').valueAsDate = new Date();
-  curInnings = parseInt(document.getElementById('game-innings').value);
-  if (!curLineup.length) resetCurLineup();
+  // Default to next future game if one exists and we're not already editing
+  if (!editingGameId && !curLineup.length) {
+    const today = new Date().toISOString().slice(0, 10);
+    const nextGame = store.games
+      .filter(g => g.date >= today)
+      .sort((a, b) => a.date.localeCompare(b.date))[0];
+    if (nextGame) {
+      // Load it in edit mode so coach can update it
+      editingGameId = nextGame.id;
+      curLineup = JSON.parse(JSON.stringify(nextGame.innings));
+      curInnings = nextGame.innings.length;
+      curInnIdx  = 1;
+      document.getElementById('game-date').value = nextGame.date;
+      const sel = document.getElementById('game-innings');
+      let opt = sel.querySelector(`option[value="${curInnings}"]`);
+      if (!opt) { opt = document.createElement('option'); opt.value = curInnings; opt.textContent = curInnings; sel.appendChild(opt); }
+      sel.value = curInnings;
+    } else {
+      // No future game — fresh blank lineup
+      if (!document.getElementById('game-date').value)
+        document.getElementById('game-date').valueAsDate = new Date();
+      curInnings = parseInt(document.getElementById('game-innings').value);
+      resetCurLineup();
+    }
+  } else if (!editingGameId) {
+    if (!document.getElementById('game-date').value)
+      document.getElementById('game-date').valueAsDate = new Date();
+    curInnings = parseInt(document.getElementById('game-innings').value);
+  }
   updateEditUI(); buildInningTabs(); renderCurrentView();
+}
+
+function clearAllPositions() {
+  const scope = curInnIdx === 0 ? 'all innings' : `inning ${curInnIdx}`;
+  if (!confirm(`Clear all position assignments for ${scope}?`)) return;
+  if (curInnIdx === 0) {
+    // Clear every inning
+    curLineup.forEach(inn => {
+      Object.keys(inn).forEach(k => inn[k] = '');
+    });
+  } else {
+    // Clear just the current inning
+    const inn = curLineup[curInnIdx - 1];
+    Object.keys(inn).forEach(k => inn[k] = '');
+  }
+  const logEl = document.getElementById('rng-log');
+  logEl.classList.remove('visible');
+  renderCurrentView();
 }
 
 function updateEditUI() {
@@ -1263,6 +1571,8 @@ function deleteSeason(idx) {
 // ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
+let currentPage = 'home';
+renderHome();
 renderRoster();
 renderHistory();
 renderStats();
