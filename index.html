@@ -231,7 +231,11 @@ select option{background:var(--panel2)}
 .help-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:20px;color:var(--chalk);font-family:'DM Sans',sans-serif;font-size:.75rem;font-weight:700;padding:5px 12px;cursor:pointer;transition:all .2s;margin-left:auto;white-space:nowrap;letter-spacing:.3px}
 .help-btn:hover{background:rgba(255,255,255,.16)}
 
-/* AUTH */
+/* ABSENT PLAYERS */
+.absent-row{border-color:rgba(90,104,128,.4)!important;background:rgba(30,38,56,.5)!important;opacity:.7}
+.badge-absent{background:rgba(90,104,128,.3);border:1px solid #5a6880;color:#8b9ab5;font-size:.65rem;padding:2px 8px;border-radius:12px;font-weight:700}
+.absent-section{background:rgba(30,38,56,.4);border:1px dashed #3d4a60;border-radius:8px;padding:10px 14px;margin-top:8px}
+.cell-absent{background:rgba(90,104,128,.15);border-radius:4px;color:#5a6880;padding:2px 7px;font-size:.71rem;font-weight:700;display:inline-block;font-style:italic}
 .auth-overlay{display:none;position:fixed;inset:0;background:rgba(10,15,24,.96);z-index:3000;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
 .auth-overlay.open{display:flex}
 .auth-box{background:var(--panel);border:1px solid var(--rmll-blue-dark);border-radius:14px;padding:32px;max-width:360px;width:100%;text-align:center}
@@ -401,6 +405,18 @@ body.view-only .edit-control{opacity:.35;pointer-events:none;cursor:not-allowed}
       <button class="btn btn-ghost btn-sm" onclick="cancelEditGame()">✕ Cancel</button>
     </div>
     <div id="rng-log" class="rng-log"></div>
+
+    <!-- Absent players for this game -->
+    <div style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+        <span style="font-size:.75rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.6px">🚫 Missing This Game</span>
+        <select id="absent-add-sel" class="edit-control" style="font-size:.8rem" onchange="markAbsent(this.value);this.value=''">
+          <option value="">+ Mark player absent…</option>
+        </select>
+      </div>
+      <div id="absent-list"></div>
+    </div>
+
     <div class="inning-tabs" id="inning-tabs"></div>
     <div id="list-view"><div id="pos-list-content"></div></div>
     <div id="field-view" style="display:none">
@@ -628,6 +644,7 @@ const INFIELD   = ['1st Base','2nd Base','3rd Base','Shortstop'];
 const OUTFIELD  = ['Left Field','Left Center Field','Right Center Field','Right Field'];
 const LOCKED    = ['Pitcher','Catcher','1st Base'];
 const BENCH     = 'Bench';
+const ABSENT    = 'Absent'; // player missing this game — excluded from bench stats
 const MAX_SEASONS = 10;
 
 const FIELD_POS = {
@@ -675,6 +692,7 @@ let store   = loadStore();
 let seasons = loadSeasons(); // [{name, date, data}]
 
 let curInnings = 7, curLineup = [], curInnIdx = 1, viewMode = 'list', editingGameId = null, dSrc = null;
+let curAbsent = []; // array of player IDs absent for the current game being edited
 
 // ═══════════════════════════════════════════════════════
 // PERSIST
@@ -979,7 +997,11 @@ function buildPrefBtns(p) {
 
 function getBenchInn(pid) {
   let t = 0;
-  store.games.forEach(g => g.innings.forEach(inn => { if (inn[pid] === BENCH) t++; }));
+  store.games.forEach(g => {
+    // Skip if this player was marked absent for this game
+    if (g.absent && g.absent.includes(pid)) return;
+    g.innings.forEach(inn => { if (inn[pid] === BENCH) t++; });
+  });
   return t;
 }
 
@@ -1030,9 +1052,9 @@ function initPositionsPage() {
       .filter(g => g.date >= today)
       .sort((a, b) => a.date.localeCompare(b.date))[0];
     if (nextGame) {
-      // Load it in edit mode so coach can update it
       editingGameId = nextGame.id;
       curLineup = JSON.parse(JSON.stringify(nextGame.innings));
+      curAbsent = nextGame.absent ? [...nextGame.absent] : [];
       curInnings = nextGame.innings.length;
       curInnIdx  = 1;
       document.getElementById('game-date').value = nextGame.date;
@@ -1041,18 +1063,19 @@ function initPositionsPage() {
       if (!opt) { opt = document.createElement('option'); opt.value = curInnings; opt.textContent = curInnings; sel.appendChild(opt); }
       sel.value = curInnings;
     } else {
-      // No future game — fresh blank lineup
       if (!document.getElementById('game-date').value)
         document.getElementById('game-date').valueAsDate = new Date();
       curInnings = parseInt(document.getElementById('game-innings').value);
+      curAbsent = [];
       resetCurLineup();
     }
   } else if (!editingGameId) {
     if (!document.getElementById('game-date').value)
       document.getElementById('game-date').valueAsDate = new Date();
     curInnings = parseInt(document.getElementById('game-innings').value);
+    curAbsent = [];
   }
-  updateEditUI(); buildInningTabs(); renderCurrentView();
+  updateEditUI(); buildInningTabs(); renderAbsentList(); renderCurrentView();
 }
 
 function clearAllPositions() {
@@ -1129,20 +1152,22 @@ function renderListView(i) {
   const el = document.getElementById('pos-list-content');
   if (!store.players.length) { el.innerHTML = '<div class="empty"><div class="icon">🧤</div>Add players to the roster first.</div>'; return; }
   const lineup = curLineup[i];
+  // Players available for field assignment (not absent)
+  const activePlayers = store.players.filter(p => lineup[p.id] !== ABSENT);
   let h = '';
   POSITIONS.forEach(pos => {
     const pid = Object.entries(lineup).find(([k,v]) => v === pos)?.[0];
     h += `<div class="pos-list-row"><span class="pos-lbl">${pos}</span>
       <select onchange="assignPos(${i},this.value,'${pos}')">
         <option value="">-- unassigned --</option>
-        ${store.players.map(p => {
+        ${activePlayers.map(p => {
           const cur = lineup[p.id]; const taken = cur && cur !== pos;
           return `<option value="${p.id}" ${pid&&parseInt(pid)===p.id?'selected':''} ${taken?'style="color:var(--muted2)"':''}>${p.number} ${p.name}${taken?' ('+cur+')':''}</option>`;
         }).join('')}
       </select></div>`;
   });
-  const benched    = store.players.filter(p => lineup[p.id] === BENCH);
-  const unassigned = store.players.filter(p => !lineup[p.id]);
+  const benched    = activePlayers.filter(p => lineup[p.id] === BENCH);
+  const unassigned = activePlayers.filter(p => !lineup[p.id]);
   h += `<div class="pos-list-row bench-row" style="display:block;padding:10px 14px">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:${benched.length?'8px':'0'}">
       <span class="pos-lbl bench-lbl">🪑 Bench</span>
@@ -1165,12 +1190,17 @@ function renderAllInningsTable() {
   let h = `<div class="overflow-x"><table class="ai-table"><thead><tr>
     <th>Position</th>${curLineup.map((_,i) => `<th>Inn ${i+1}</th>`).join('')}
   </tr></thead><tbody>`;
-  [...POSITIONS, BENCH].forEach(pos => {
-    h += `<tr><td><span style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:1px;color:${pos===BENCH?'var(--bench-light)':'var(--dirt-light)'}">${pos===BENCH?'🪑 Bench':pos}</span></td>`;
+  [...POSITIONS, BENCH, ABSENT].forEach(pos => {
+    const labelColor = pos===BENCH?'var(--bench-light)':pos===ABSENT?'var(--muted2)':'var(--dirt-light)';
+    const labelText  = pos===BENCH?'🪑 Bench':pos===ABSENT?'🚫 Absent':pos;
+    h += `<tr><td><span style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:1px;color:${labelColor}">${labelText}</span></td>`;
     curLineup.forEach(inn => {
       if (pos === BENCH) {
         const bp = store.players.filter(p => inn[p.id] === BENCH);
         h += `<td>${bp.map(p=>`<span class="cell-bench">${p.name}</span>`).join(' ')||'<span style="color:var(--muted2);font-size:.75rem">—</span>'}</td>`;
+      } else if (pos === ABSENT) {
+        const ap = store.players.filter(p => inn[p.id] === ABSENT);
+        h += `<td>${ap.map(p=>`<span class="cell-absent">${p.name}</span>`).join(' ')||'<span style="color:var(--muted2);font-size:.75rem">—</span>'}</td>`;
       } else {
         const pid = Object.entries(inn).find(([k,v]) => v === pos)?.[0];
         const pl  = pid ? store.players.find(p => p.id === parseInt(pid)) : null;
@@ -1198,7 +1228,7 @@ function renderFieldView(i) {
     </div>`;
   }).join('');
   const benched    = store.players.filter(p => lineup[p.id] === BENCH);
-  const unassigned = store.players.filter(p => !lineup[p.id]);
+  const unassigned = store.players.filter(p => !lineup[p.id] || lineup[p.id] === '');
   let bh = '<div style="display:flex;gap:10px;flex-wrap:wrap">';
   if (benched.length) bh += `<div class="card" style="flex:1;min-width:180px;padding:12px">
     <div class="lbl" style="margin-bottom:7px">🪑 Bench</div>
@@ -1236,31 +1266,72 @@ function removeBench(innIdx, playerId) { curLineup[innIdx][playerId] = ''; rende
 function saveGame() {
   const date = document.getElementById('game-date').value || new Date().toISOString().slice(0,10);
   if (!store.players.length) { alert('No players on roster!'); return; }
+  const gameData = { id: editingGameId || Date.now(), date, innings: JSON.parse(JSON.stringify(curLineup)), absent: [...curAbsent] };
   if (editingGameId) {
     const idx = store.games.findIndex(g => g.id === editingGameId);
-    if (idx !== -1) { store.games[idx].date = date; store.games[idx].innings = JSON.parse(JSON.stringify(curLineup)); }
+    if (idx !== -1) store.games[idx] = gameData;
     editingGameId = null; alert('✅ Game updated!');
   } else {
-    store.games.push({id: Date.now(), date, innings: JSON.parse(JSON.stringify(curLineup))});
+    gameData.id = Date.now();
+    store.games.push(gameData);
     alert('✅ Game saved!');
   }
-  persist(); curLineup = []; updateEditUI();
+  persist(); curLineup = []; curAbsent = []; updateEditUI(); renderAbsentList();
 }
 
 function editGame(id) {
   const g = store.games.find(gm => gm.id === id); if (!g) return;
   editingGameId = id;
   curLineup = JSON.parse(JSON.stringify(g.innings));
+  curAbsent = g.absent ? [...g.absent] : [];
   curInnings = g.innings.length; curInnIdx = 1;
   document.getElementById('game-date').value = g.date;
   const sel = document.getElementById('game-innings');
   let opt = sel.querySelector(`option[value="${curInnings}"]`);
   if (!opt) { opt = document.createElement('option'); opt.value = curInnings; opt.textContent = curInnings; sel.appendChild(opt); }
   sel.value = curInnings;
-  showPage('positions', document.querySelector('nav button:nth-child(2)'));
+  showPage('positions', document.querySelector('nav button:nth-child(3)'));
 }
 
-function cancelEditGame() { editingGameId = null; curLineup = []; resetCurLineup(); updateEditUI(); buildInningTabs(); renderCurrentView(); }
+function cancelEditGame() { editingGameId = null; curLineup = []; curAbsent = []; resetCurLineup(); updateEditUI(); buildInningTabs(); renderAbsentList(); renderCurrentView(); }
+
+// ── Absent player management ──
+function renderAbsentList() {
+  const sel  = document.getElementById('absent-add-sel');
+  const list = document.getElementById('absent-list');
+  if (!sel || !list) return;
+
+  // Populate dropdown with non-absent players
+  const available = store.players.filter(p => !curAbsent.includes(p.id));
+  sel.innerHTML = '<option value="">+ Mark player absent…</option>' +
+    available.map(p => `<option value="${p.id}">${p.number} ${p.name}</option>`).join('');
+
+  if (!curAbsent.length) { list.innerHTML = ''; return; }
+  const absentPlayers = curAbsent.map(id => store.players.find(p => p.id === id)).filter(Boolean);
+  list.innerHTML = `<div class="absent-section"><div style="display:flex;flex-wrap:wrap;gap:6px">` +
+    absentPlayers.map(p => `
+      <div style="display:flex;align-items:center;gap:5px;background:rgba(30,38,56,.7);border:1px solid #3d4a60;border-radius:6px;padding:4px 10px">
+        <span style="font-size:.83rem;font-weight:600;color:var(--muted)">${p.number} ${p.name}</span>
+        <span class="badge-absent" style="font-size:.62rem">absent</span>
+        <button class="btn-icon edit-control" style="color:#5a6880;font-size:.75rem" onclick="unmarkAbsent(${p.id})">✕</button>
+      </div>`).join('') +
+    '</div></div>';
+}
+
+function markAbsent(playerId) {
+  const pid = parseInt(playerId); if (!pid) return;
+  if (!curAbsent.includes(pid)) curAbsent.push(pid);
+  // Remove from all lineup innings — absent players have no position
+  curLineup.forEach(inn => { if (inn[pid] !== undefined) inn[pid] = ABSENT; });
+  renderAbsentList(); renderCurrentView();
+}
+
+function unmarkAbsent(pid) {
+  curAbsent = curAbsent.filter(id => id !== pid);
+  // Clear the ABSENT marker from all innings so they show as unassigned
+  curLineup.forEach(inn => { if (inn[pid] === ABSENT) inn[pid] = ''; });
+  renderAbsentList(); renderCurrentView();
+}
 
 // ═══════════════════════════════════════════════════════
 // RANDOMIZER
@@ -1292,22 +1363,27 @@ function getBenchCountsAcrossGame() {
 function randomizePositions() {
   if (!store.players.length) { alert('Add players to the roster first.'); return; }
   if (!curLineup.length) resetCurLineup();
-  const n = store.players.length;
+  // Only count present players for field/bench math
+  const presentPlayers = store.players.filter(p => !curAbsent.includes(p.id));
+  const n = presentPlayers.length;
   const benchPerInning = Math.max(0, n - POSITIONS.length);
   const logLines = [];
   const historicBench = getBenchCountsAcrossGame();
   const thisBench = {};
-  store.players.forEach(p => thisBench[p.id] = 0);
+  presentPlayers.forEach(p => thisBench[p.id] = 0);
 
   for (let i = 0; i < curInnings; i++) {
     const lineup = curLineup[i];
+    // Ensure absent players are marked in the lineup
+    store.players.forEach(p => { if (curAbsent.includes(p.id)) lineup[p.id] = ABSENT; });
     const locked = {};
     LOCKED.forEach(pos => {
       const entry = Object.entries(lineup).find(([k,v]) => v === pos);
       if (entry) locked[parseInt(entry[0])] = pos;
     });
-    store.players.forEach(p => { if (!locked[p.id]) lineup[p.id] = ''; });
-    let free = store.players.filter(p => !locked[p.id]);
+    // Clear non-locked present players
+    presentPlayers.forEach(p => { if (!locked[p.id]) lineup[p.id] = ''; });
+    let free = presentPlayers.filter(p => !locked[p.id]);
     let benchPlayers = [];
     if (benchPerInning > 0) {
       const sortedForBench = [...free].sort((a,b) => {
@@ -1334,7 +1410,8 @@ function randomizePositions() {
     });
     remaining.forEach(p => { lineup[p.id] = BENCH; thisBench[p.id]++; });
     const benchNames = benchPlayers.map(p => p.name).join(', ') || 'none';
-    logLines.push(`Inning ${i+1}: Bench → ${benchNames}`);
+    const absentNames = curAbsent.map(id => { const pl = store.players.find(p=>p.id===id); return pl?pl.name:''; }).filter(Boolean);
+    logLines.push(`Inning ${i+1}: Bench → ${benchNames}${absentNames.length?' · Absent → '+absentNames.join(', '):''}`);
   }
   const logEl = document.getElementById('rng-log');
   logEl.innerHTML = '<b style="color:var(--accent2)">🎲 Randomizer applied</b><br>' + logLines.join('<br>');
@@ -1345,9 +1422,15 @@ function randomizePositions() {
 // ═══════════════════════════════════════════════════════
 // COPY TO TEXT
 // ═══════════════════════════════════════════════════════
-function buildGamePlanText(innings, dateStr) {
+function buildGamePlanText(innings, dateStr, absentIds) {
   const label = dateStr ? fmtDate(dateStr) : 'Current Game Plan';
-  const lines = ['⚾ DIAMOND MANAGER — GAME PLAN', label.toUpperCase(), '─'.repeat(36), ''];
+  const lines = ['⚾ RMLL ROOKIES — GAME PLAN', label.toUpperCase(), '─'.repeat(36), ''];
+  // Show absent players at top if any
+  if (absentIds && absentIds.length) {
+    const names = absentIds.map(id => { const p=store.players.find(pl=>pl.id===id); return p?`#${p.number} ${p.name}`:''; }).filter(Boolean);
+    lines.push(`🚫 ABSENT: ${names.join(', ')}`);
+    lines.push('');
+  }
   innings.forEach((inn, i) => {
     lines.push(`▸ INNING ${i+1}`);
     POSITIONS.forEach(pos => {
@@ -1360,8 +1443,9 @@ function buildGamePlanText(innings, dateStr) {
     lines.push('');
   });
   if (store.battingOrder.length) {
+    const presentOrder = store.battingOrder.filter(id => !absentIds || !absentIds.includes(id));
     lines.push('▸ BATTING ORDER');
-    store.battingOrder.forEach((id, i) => {
+    presentOrder.forEach((id, i) => {
       const p = store.players.find(pl => pl.id === id); if (!p) return;
       lines.push(`  ${String(i+1).padStart(2)}. #${p.number} ${p.name}${store.nextBatterId===id?' ◀ NEXT UP':''}`);
     });
@@ -1371,14 +1455,14 @@ function buildGamePlanText(innings, dateStr) {
   return lines.join('\n');
 }
 
-function openCopyModal(innings, dateStr) {
+function openCopyModal(innings, dateStr, absentIds) {
   if (!innings || !innings.length) { alert('No lineup to share yet.'); return; }
-  document.getElementById('copy-textarea').value = buildGamePlanText(innings, dateStr);
+  document.getElementById('copy-textarea').value = buildGamePlanText(innings, dateStr, absentIds || curAbsent);
   document.getElementById('copy-modal').classList.add('open');
 }
 function openCopyModalById(id) {
   const g = store.games.find(gm => gm.id === id); if (!g) return;
-  openCopyModal(g.innings, g.date);
+  openCopyModal(g.innings, g.date, g.absent || []);
 }
 function closeCopyModal() { document.getElementById('copy-modal').classList.remove('open'); }
 function copyToClipboard() {
@@ -1468,11 +1552,13 @@ function renderStats() {
   const alrt  = document.getElementById('fairness-alert');
   if (!store.players.length||!store.games.length) { tbody.innerHTML=''; empty.style.display=''; alrt.style.display='none'; return; }
   empty.style.display = 'none';
-  const totalInn = store.games.reduce((s,g) => s+g.innings.length, 0);
   const stats = store.players.map(p => {
-    const bi  = getBenchInn(p.id);
-    const g   = store.games.filter(gm => gm.innings.some(inn => inn[p.id])).length;
-    const pct = totalInn>0 ? Math.round(bi/totalInn*100) : 0;
+    const bi = getBenchInn(p.id);
+    // Only count games where this player was present
+    const g  = store.games.filter(gm => !(gm.absent||[]).includes(p.id) && gm.innings.some(inn => inn[p.id])).length;
+    // Bench % uses only innings this player was eligible to play
+    const eligibleInn = store.games.reduce((s, gm) => (gm.absent||[]).includes(p.id) ? s : s + gm.innings.length, 0);
+    const pct = eligibleInn > 0 ? Math.round(bi / eligibleInn * 100) : 0;
     return {...p, bi, g, pct};
   }).sort((a,b) => b.bi-a.bi);
   const maxB = Math.max(...stats.map(s=>s.bi),1);
@@ -1507,8 +1593,9 @@ function renderHistory() {
       const bp = Object.entries(inn).filter(([k,v])=>v===BENCH).map(([k]) => { const p=store.players.find(pl=>pl.id===parseInt(k)); return p?p.name:'?'; });
       return bp.length ? `Inn ${i+1}: ${bp.join(', ')}` : null;
     }).filter(Boolean);
+    const absentNames = (g.absent||[]).map(id => { const p=store.players.find(pl=>pl.id===id); return p?p.name:''; }).filter(Boolean);
     return `<div class="game-hcard">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
         <b style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:1px">${fmtDate(g.date)}</b>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           <span class="game-date-tag">${g.innings.length} innings</span>
@@ -1517,6 +1604,7 @@ function renderHistory() {
           <button class="btn btn-danger btn-xs" onclick="delGame(${g.id})">Delete</button>
         </div>
       </div>
+      ${absentNames.length ? `<div style="margin-bottom:6px"><span class="cell-absent" style="font-size:.75rem">🚫 Absent: ${absentNames.join(', ')}</span></div>` : ''}
       ${bs.length?`<div class="lbl" style="margin-bottom:5px">Bench</div><div>${bs.map(s=>`<span class="mini-tag">🪑 <b>${s}</b></span>`).join('')}</div>`:'<span class="mini-tag" style="color:var(--muted2)">No bench recorded</span>'}
     </div>`;
   }).join('');
