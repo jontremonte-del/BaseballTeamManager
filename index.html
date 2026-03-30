@@ -7,9 +7,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <style>
 :root{
-  /* RMLL brand: red, navy, gold accent */
+  /* RMLL brand: red, Carolina blue, gold accent */
   --rmll-red:#C8102E;--rmll-red-dark:#8B0A1E;--rmll-red-light:#E8304E;
   --rmll-navy:#1A2D4F;--rmll-navy-dark:#0E1B30;--rmll-navy-mid:#243860;
+  --rmll-blue:#5B9BD5;--rmll-blue-dark:#3A78B5;--rmll-blue-mid:#4A8AC8;
   --rmll-gold:#F5A800;--rmll-gold-light:#FFD060;
   --dirt:#c8803a;--dirt-light:#e8a55a;
   --grass:#2d6a2d;--grass-light:#3a8a3a;--grass-mid:#245224;
@@ -32,14 +33,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--night);color:var(--text);
 .sync-dot.ok{background:var(--accent3)}.sync-dot.off{background:var(--accent)}.sync-dot.err{background:var(--bench-light)}
 
 /* ── HEADER: RMLL red → navy gradient ── */
-header{background:linear-gradient(120deg,var(--rmll-red-dark) 0%,var(--rmll-red) 35%,var(--rmll-navy) 100%);border-bottom:3px solid var(--rmll-gold);padding:12px 20px;display:flex;align-items:center;gap:14px;position:relative}
+header{background:linear-gradient(120deg,var(--rmll-red-dark) 0%,var(--rmll-red) 35%,var(--rmll-blue-dark) 75%,var(--rmll-blue) 100%);border-bottom:3px solid var(--rmll-gold);padding:12px 20px;display:flex;align-items:center;gap:14px;position:relative}
 header::after{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");pointer-events:none}
 header h1{font-family:'Bebas Neue',sans-serif;font-size:1.9rem;letter-spacing:3px;color:#fff;line-height:1;position:relative;z-index:1}
 header .sub{font-size:.68rem;color:var(--rmll-gold-light);letter-spacing:1.5px;text-transform:uppercase;font-weight:700;position:relative;z-index:1}
 .hdr-icon{font-size:2rem;position:relative;z-index:1}
 .hdr-left{display:flex;flex-direction:column;position:relative;z-index:1}
 
-nav{display:flex;background:var(--rmll-navy-dark);border-bottom:1px solid var(--rmll-navy-mid);overflow-x:auto;scrollbar-width:none}
+nav{display:flex;background:var(--rmll-navy-dark);border-bottom:1px solid var(--rmll-blue-dark);overflow-x:auto;scrollbar-width:none}
 nav::-webkit-scrollbar{display:none}
 nav button{flex:1;min-width:90px;padding:12px 6px;background:none;border:none;color:rgba(255,255,255,.45);font-family:'DM Sans',sans-serif;font-size:.72rem;font-weight:600;letter-spacing:.3px;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;text-transform:uppercase;white-space:nowrap}
 nav button.active{color:var(--rmll-gold);border-bottom-color:var(--rmll-gold);background:rgba(245,168,0,.08)}
@@ -233,7 +234,7 @@ select option{background:var(--panel2)}
 /* AUTH */
 .auth-overlay{display:none;position:fixed;inset:0;background:rgba(10,15,24,.96);z-index:3000;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
 .auth-overlay.open{display:flex}
-.auth-box{background:var(--panel);border:1px solid var(--rmll-navy-mid);border-radius:14px;padding:32px;max-width:360px;width:100%;text-align:center}
+.auth-box{background:var(--panel);border:1px solid var(--rmll-blue-dark);border-radius:14px;padding:32px;max-width:360px;width:100%;text-align:center}
 .auth-logo{font-size:2.5rem;margin-bottom:6px}
 .auth-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px;color:#fff;margin-bottom:4px}
 .auth-sub{font-size:.78rem;color:var(--muted);margin-bottom:24px;line-height:1.5}
@@ -246,7 +247,7 @@ select option{background:var(--panel2)}
 .auth-skip:hover{color:var(--text)}
 
 /* VIEW-ONLY BANNER */
-.view-only-bar{display:none;background:linear-gradient(90deg,var(--rmll-navy-dark),var(--rmll-navy-mid));border-bottom:1px solid var(--rmll-navy-mid);padding:6px 20px;font-size:.75rem;color:rgba(255,255,255,.6);align-items:center;gap:10px}
+.view-only-bar{display:none;background:linear-gradient(90deg,var(--rmll-navy-dark),var(--rmll-blue-dark));border-bottom:1px solid var(--rmll-blue-dark);padding:6px 20px;font-size:.75rem;color:rgba(255,255,255,.6);align-items:center;gap:10px}
 .view-only-bar.visible{display:flex}
 .view-only-bar b{color:var(--rmll-gold)}
 .coach-btn{background:var(--rmll-red);color:#fff;border:none;border-radius:5px;padding:3px 10px;font-size:.7rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;margin-left:auto;white-space:nowrap}
