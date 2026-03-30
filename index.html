@@ -3,18 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Diamond Manager</title>
+<title>RMLL Rookies — Diamond Manager</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <style>
 :root{
+  /* RMLL brand: red, navy, gold accent */
+  --rmll-red:#C8102E;--rmll-red-dark:#8B0A1E;--rmll-red-light:#E8304E;
+  --rmll-navy:#1A2D4F;--rmll-navy-dark:#0E1B30;--rmll-navy-mid:#243860;
+  --rmll-gold:#F5A800;--rmll-gold-light:#FFD060;
   --dirt:#c8803a;--dirt-light:#e8a55a;
   --grass:#2d6a2d;--grass-light:#3a8a3a;--grass-mid:#245224;
   --chalk:#f5f0e8;
-  --night:#0d1117;--panel:#161b22;--panel2:#1e2630;--panel3:#252d38;
-  --border:#30363d;--border2:#3d4755;
-  --text:#e6edf3;--muted:#8b949e;--muted2:#6a7480;
+  --night:#0a0f18;--panel:#111827;--panel2:#1a2235;--panel3:#202c42;
+  --border:#2a3550;--border2:#354060;
+  --text:#e6edf3;--muted:#8b9ab5;--muted2:#5a6880;
   --bench:#c94040;--bench-light:#e05555;
-  --accent:#f0c040;--accent2:#58a6ff;--accent3:#56d364;
+  --accent:#F5A800;--accent2:#58a6ff;--accent3:#56d364;
   --admin:#ff6b35;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -27,18 +31,21 @@ body{font-family:'DM Sans',sans-serif;background:var(--night);color:var(--text);
 .sync-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .sync-dot.ok{background:var(--accent3)}.sync-dot.off{background:var(--accent)}.sync-dot.err{background:var(--bench-light)}
 
-header{background:linear-gradient(135deg,#1a3d1a 0%,#0d2010 100%);border-bottom:3px solid var(--dirt);padding:12px 20px;display:flex;align-items:center;gap:14px}
-header h1{font-family:'Bebas Neue',sans-serif;font-size:1.9rem;letter-spacing:3px;color:var(--chalk);line-height:1}
-header .sub{font-size:.7rem;color:var(--dirt-light);letter-spacing:1.5px;text-transform:uppercase;font-weight:600}
-.hdr-icon{font-size:2rem}
+/* ── HEADER: RMLL red → navy gradient ── */
+header{background:linear-gradient(120deg,var(--rmll-red-dark) 0%,var(--rmll-red) 35%,var(--rmll-navy) 100%);border-bottom:3px solid var(--rmll-gold);padding:12px 20px;display:flex;align-items:center;gap:14px;position:relative}
+header::after{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");pointer-events:none}
+header h1{font-family:'Bebas Neue',sans-serif;font-size:1.9rem;letter-spacing:3px;color:#fff;line-height:1;position:relative;z-index:1}
+header .sub{font-size:.68rem;color:var(--rmll-gold-light);letter-spacing:1.5px;text-transform:uppercase;font-weight:700;position:relative;z-index:1}
+.hdr-icon{font-size:2rem;position:relative;z-index:1}
+.hdr-left{display:flex;flex-direction:column;position:relative;z-index:1}
 
-nav{display:flex;background:var(--panel);border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none}
+nav{display:flex;background:var(--rmll-navy-dark);border-bottom:1px solid var(--rmll-navy-mid);overflow-x:auto;scrollbar-width:none}
 nav::-webkit-scrollbar{display:none}
-nav button{flex:1;min-width:90px;padding:12px 6px;background:none;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:.72rem;font-weight:600;letter-spacing:.3px;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;text-transform:uppercase;white-space:nowrap}
-nav button.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(240,192,64,.06)}
-nav button:hover:not(.active){color:var(--text)}
-nav button.admin-btn{color:var(--admin)}
-nav button.admin-btn.active{color:var(--admin);border-bottom-color:var(--admin);background:rgba(255,107,53,.06)}
+nav button{flex:1;min-width:90px;padding:12px 6px;background:none;border:none;color:rgba(255,255,255,.45);font-family:'DM Sans',sans-serif;font-size:.72rem;font-weight:600;letter-spacing:.3px;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;text-transform:uppercase;white-space:nowrap}
+nav button.active{color:var(--rmll-gold);border-bottom-color:var(--rmll-gold);background:rgba(245,168,0,.08)}
+nav button:hover:not(.active){color:#fff}
+nav button.admin-btn{color:rgba(255,107,53,.7)}
+nav button.admin-btn.active{color:var(--admin);border-bottom-color:var(--admin);background:rgba(255,107,53,.07)}
 
 main{max-width:1000px;margin:0 auto;padding:20px 14px}
 .page{display:none}.page.active{display:block}
@@ -223,6 +230,31 @@ select option{background:var(--panel2)}
 .help-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:20px;color:var(--chalk);font-family:'DM Sans',sans-serif;font-size:.75rem;font-weight:700;padding:5px 12px;cursor:pointer;transition:all .2s;margin-left:auto;white-space:nowrap;letter-spacing:.3px}
 .help-btn:hover{background:rgba(255,255,255,.16)}
 
+/* AUTH */
+.auth-overlay{display:none;position:fixed;inset:0;background:rgba(10,15,24,.96);z-index:3000;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
+.auth-overlay.open{display:flex}
+.auth-box{background:var(--panel);border:1px solid var(--rmll-navy-mid);border-radius:14px;padding:32px;max-width:360px;width:100%;text-align:center}
+.auth-logo{font-size:2.5rem;margin-bottom:6px}
+.auth-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px;color:#fff;margin-bottom:4px}
+.auth-sub{font-size:.78rem;color:var(--muted);margin-bottom:24px;line-height:1.5}
+.auth-input{width:100%;text-align:center;font-size:1.4rem;letter-spacing:.4rem;padding:12px;margin-bottom:12px;background:var(--panel2);border:2px solid var(--border);border-radius:8px;color:var(--text)}
+.auth-input:focus{border-color:var(--rmll-gold);outline:none}
+.auth-btn{width:100%;padding:11px;background:var(--rmll-red);color:#fff;font-family:'DM Sans',sans-serif;font-size:.9rem;font-weight:700;border:none;border-radius:8px;cursor:pointer;transition:background .2s;margin-bottom:8px}
+.auth-btn:hover{background:var(--rmll-red-light)}
+.auth-err{font-size:.78rem;color:var(--bench-light);min-height:18px;margin-bottom:8px}
+.auth-skip{font-size:.75rem;color:var(--muted);cursor:pointer;text-decoration:underline;background:none;border:none;font-family:'DM Sans',sans-serif}
+.auth-skip:hover{color:var(--text)}
+
+/* VIEW-ONLY BANNER */
+.view-only-bar{display:none;background:linear-gradient(90deg,var(--rmll-navy-dark),var(--rmll-navy-mid));border-bottom:1px solid var(--rmll-navy-mid);padding:6px 20px;font-size:.75rem;color:rgba(255,255,255,.6);align-items:center;gap:10px}
+.view-only-bar.visible{display:flex}
+.view-only-bar b{color:var(--rmll-gold)}
+.coach-btn{background:var(--rmll-red);color:#fff;border:none;border-radius:5px;padding:3px 10px;font-size:.7rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;margin-left:auto;white-space:nowrap}
+.coach-btn:hover{background:var(--rmll-red-light)}
+
+/* in read-only mode, disable edit controls */
+body.view-only .edit-control{opacity:.35;pointer-events:none;cursor:not-allowed}
+
 @media(max-width:580px){
   .pos-list-row{grid-template-columns:120px 1fr}
   header h1{font-size:1.5rem}
@@ -238,14 +270,33 @@ select option{background:var(--panel2)}
   <span id="sync-label">Connecting…</span>
 </div>
 
+<!-- View-only banner shown to unauthenticated users -->
+<div class="view-only-bar" id="view-only-bar">
+  👁️ <span>You're in <b>View Only</b> mode — lineup is live read-only</span>
+  <button class="coach-btn" onclick="openAuthOverlay()">🔐 Coach Login</button>
+</div>
+
 <header>
-  <span class="hdr-icon">⚾</span>
-  <div>
+  <span class="hdr-icon" style="position:relative;z-index:1">⚾</span>
+  <div class="hdr-left">
     <h1>Diamond Manager</h1>
-    <span class="sub">Youth Baseball · Lineup &amp; Bench Tracker</span>
+    <span class="sub">RMLL Rookies Baseball · Lineup &amp; Bench Tracker</span>
   </div>
-  <button class="help-btn" onclick="openHelp()" id="help-btn">? Help</button>
+  <button class="help-btn" onclick="openHelp()" id="help-btn" style="position:relative;z-index:1">? Help</button>
 </header>
+
+<!-- PIN auth overlay -->
+<div class="auth-overlay" id="auth-overlay">
+  <div class="auth-box">
+    <div class="auth-logo">⚾</div>
+    <div class="auth-title">Coach Access</div>
+    <div class="auth-sub">Enter your coach PIN to edit rosters, positions, and game data.<br>Anyone with the link can view without a PIN.</div>
+    <input type="password" inputmode="numeric" class="auth-input" id="pin-input" maxlength="8" placeholder="• • • •" onkeydown="if(event.key==='Enter')verifyPin()">
+    <div class="auth-err" id="pin-err"></div>
+    <button class="auth-btn" onclick="verifyPin()">🔐 Sign In as Coach</button>
+    <button class="auth-skip" onclick="closeAuthOverlay()">Continue as viewer</button>
+  </div>
+</div>
 
 <nav id="main-nav">
   <button class="active" onclick="showPage('home',this)">🏠 Home</button>
@@ -312,7 +363,7 @@ select option{background:var(--panel2)}
     <div class="form-row" style="margin-bottom:14px">
       <div class="form-group"><div class="lbl">Jersey #</div><input type="number" id="new-number" placeholder="12" style="width:76px" min="0" max="99"></div>
       <div class="form-group"><div class="lbl">Player Name</div><input type="text" id="new-name" placeholder="First Last" style="width:190px"></div>
-      <button class="btn btn-primary" onclick="addPlayer()">+ Add Player</button>
+      <button class="btn btn-primary edit-control" onclick="addPlayer()">+ Add Player</button>
     </div>
     <div id="roster-list"></div>
     <div class="empty" id="roster-empty"><div class="icon">🧤</div>Add players to get started!</div>
@@ -338,11 +389,11 @@ select option{background:var(--panel2)}
       </div>
     </div>
     <div class="form-row" style="margin-bottom:14px;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-purple btn-sm" onclick="randomizePositions()">🎲 Randomize Remaining</button>
-      <button class="btn btn-ghost btn-sm" onclick="clearAllPositions()">✕ Clear All</button>
+      <button class="btn btn-purple btn-sm edit-control" onclick="randomizePositions()">🎲 Randomize Remaining</button>
+      <button class="btn btn-ghost btn-sm edit-control" onclick="clearAllPositions()">✕ Clear All</button>
       <button class="btn btn-blue btn-sm" onclick="openCopyModal(curLineup, document.getElementById('game-date').value)">📋 Copy Plan</button>
       <div style="flex:1"></div>
-      <button class="btn btn-accent" id="save-game-btn" onclick="saveGame()">💾 Save Game</button>
+      <button class="btn btn-accent edit-control" id="save-game-btn" onclick="saveGame()">💾 Save Game</button>
     </div>
     <div class="edit-banner" id="edit-banner">
       <span class="edit-banner-lbl">✏️ Editing saved game</span>
@@ -385,8 +436,8 @@ select option{background:var(--panel2)}
         <div id="carried-info" style="font-size:.85rem;color:var(--muted)">Not set</div>
       </div>
       <div style="flex:1"></div>
-      <button class="btn btn-ghost btn-sm" onclick="resetBattingOrder()">↺ Reset</button>
-      <button class="btn btn-accent btn-sm" onclick="saveBattingOrder()">💾 Save Order</button>
+      <button class="btn btn-ghost btn-sm edit-control" onclick="resetBattingOrder()">↺ Reset</button>
+      <button class="btn btn-accent btn-sm edit-control" onclick="saveBattingOrder()">💾 Save Order</button>
     </div>
     <div id="batting-list"></div>
     <div class="empty" id="batting-empty"><div class="icon">🏏</div>Add players to build the batting order!</div>
@@ -441,7 +492,7 @@ select option{background:var(--panel2)}
         <div class="lbl">Season Name (for the archive)</div>
         <input type="text" id="season-name-input" placeholder="e.g. Spring 2025" style="width:100%">
       </div>
-      <button class="btn btn-danger-solid" onclick="startNewSeason()" style="align-self:flex-end">🗄️ Archive &amp; Start New Season</button>
+      <button class="btn btn-danger-solid edit-control" onclick="startNewSeason()" style="align-self:flex-end">🗄️ Archive &amp; Start New Season</button>
     </div>
   </div>
 
@@ -451,6 +502,13 @@ select option{background:var(--panel2)}
     <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">Up to 10 seasons are kept. Oldest are removed automatically. Loading a season replaces current data.</p>
     <div id="archived-seasons-list"></div>
     <div class="empty" id="archived-empty"><div class="icon">🗃️</div>No archived seasons yet.</div>
+  </div>
+
+  <!-- Coach PIN management -->
+  <div class="card">
+    <div class="section-title" style="font-size:1rem;margin-bottom:10px">🔐 Coach Authentication</div>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Anyone with the URL can view the app. Coaches need a PIN to add players, edit positions, or change data. The default PIN is <b style="color:var(--accent)">1234</b> — change it below after signing in.</p>
+    <div id="admin-auth-section"></div>
   </div>
 
   <!-- Firebase status + setup -->
@@ -1488,6 +1546,7 @@ function renderAdmin() {
 
   // Archived seasons
   renderArchivedSeasons();
+  renderAdminAuthSection();
 
   // Listen for remote seasons if FB configured
   if (window.fbListenArchive && !renderAdmin._fbListening) {
@@ -1569,9 +1628,149 @@ function deleteSeason(idx) {
 }
 
 // ═══════════════════════════════════════════════════════
+// AUTH — PIN-based coach authentication
+// ═══════════════════════════════════════════════════════
+// The PIN is stored in Firebase at diamond/config/coachPin.
+// Default PIN if none is set yet: 1234  (change via Admin tab once logged in)
+// Session persists in sessionStorage so a page refresh doesn't log you out,
+// but closing the tab does.
+
+const DEFAULT_PIN    = '1234';
+const SESSION_KEY    = 'rmll_coach_auth';
+let   isCoach        = false;
+let   configuredPin  = DEFAULT_PIN;
+
+// Fetch PIN from Firebase once connected
+function loadPinFromFirebase() {
+  if (!window.fbConfigured) return;
+  firebase.database().ref('diamond/config/coachPin').on('value', snap => {
+    const val = snap.val();
+    if (val) configuredPin = String(val);
+  });
+}
+
+function checkSession() {
+  // Check sessionStorage for valid coach session
+  const saved = sessionStorage.getItem(SESSION_KEY);
+  if (saved === 'coach') {
+    setCoachMode(true, false);
+    return true;
+  }
+  return false;
+}
+
+function openAuthOverlay() {
+  document.getElementById('pin-input').value = '';
+  document.getElementById('pin-err').textContent = '';
+  document.getElementById('auth-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('pin-input').focus(), 100);
+}
+
+function closeAuthOverlay() {
+  document.getElementById('auth-overlay').classList.remove('open');
+}
+
+function verifyPin() {
+  const entered = document.getElementById('pin-input').value.trim();
+  if (entered === configuredPin) {
+    sessionStorage.setItem(SESSION_KEY, 'coach');
+    setCoachMode(true, true);
+    closeAuthOverlay();
+  } else {
+    document.getElementById('pin-err').textContent = 'Incorrect PIN. Try again.';
+    document.getElementById('pin-input').value = '';
+    document.getElementById('pin-input').focus();
+  }
+}
+
+function setCoachMode(coach, showWelcome) {
+  isCoach = coach;
+  if (coach) {
+    document.body.classList.remove('view-only');
+    document.getElementById('view-only-bar').classList.remove('visible');
+    if (showWelcome) {
+      setSyncStatus('ok', '✅ Signed in as Coach — editing enabled');
+      setTimeout(() => {
+        if (window.fbConfigured) setSyncStatus('ok', '☁️ Live — all devices in sync');
+      }, 3000);
+    }
+  } else {
+    document.body.classList.add('view-only');
+    document.getElementById('view-only-bar').classList.add('visible');
+  }
+  // Update admin tab PIN change UI
+  renderAdminAuthSection();
+}
+
+function coachLogout() {
+  sessionStorage.removeItem(SESSION_KEY);
+  setCoachMode(false, false);
+}
+
+// Guard: prevent edit actions in view-only mode
+function requireCoach(action) {
+  if (isCoach) { action(); return; }
+  openAuthOverlay();
+}
+
+// ═══════════════════════════════════════════════════════
+// ADMIN AUTH SECTION — change PIN
+// ═══════════════════════════════════════════════════════
+function renderAdminAuthSection() {
+  const el = document.getElementById('admin-auth-section');
+  if (!el) return;
+  if (!isCoach) {
+    el.innerHTML = `<p style="font-size:.83rem;color:var(--muted)">Sign in as a coach to manage the PIN.</p>`;
+    return;
+  }
+  el.innerHTML = `
+    <div class="form-row" style="margin-bottom:10px;gap:10px;flex-wrap:wrap">
+      <div class="form-group" style="flex:1;min-width:160px">
+        <div class="lbl">New Coach PIN</div>
+        <input type="password" inputmode="numeric" id="new-pin-input" placeholder="New PIN" maxlength="8" style="width:100%">
+      </div>
+      <div class="form-group" style="flex:1;min-width:160px">
+        <div class="lbl">Confirm PIN</div>
+        <input type="password" inputmode="numeric" id="confirm-pin-input" placeholder="Confirm PIN" maxlength="8" style="width:100%">
+      </div>
+      <button class="btn btn-primary btn-sm edit-control" onclick="changePIN()" style="align-self:flex-end">Update PIN</button>
+    </div>
+    <div style="display:flex;justify-content:flex-end">
+      <button class="btn btn-ghost btn-sm" onclick="coachLogout()">🔓 Sign Out</button>
+    </div>`;
+}
+
+function changePIN() {
+  const np = document.getElementById('new-pin-input').value.trim();
+  const cp = document.getElementById('confirm-pin-input').value.trim();
+  if (!np) { alert('Enter a new PIN.'); return; }
+  if (np !== cp) { alert('PINs do not match.'); return; }
+  if (np.length < 4) { alert('PIN must be at least 4 characters.'); return; }
+  configuredPin = np;
+  if (window.fbConfigured) {
+    firebase.database().ref('diamond/config/coachPin').set(np)
+      .then(() => alert('✅ Coach PIN updated!'))
+      .catch(() => alert('PIN updated locally — Firebase write failed.'));
+  } else {
+    alert('✅ Coach PIN updated for this session. Configure Firebase to persist it across devices.');
+  }
+}
+
+// ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
 let currentPage = 'home';
+
+// Check for saved coach session first
+const hasSession = checkSession();
+if (!hasSession) {
+  // Not a coach — show view-only mode, then offer login
+  setCoachMode(false, false);
+  // Auto-prompt login after a short delay so page loads first
+  setTimeout(openAuthOverlay, 800);
+}
+
+loadPinFromFirebase();
 renderHome();
 renderRoster();
 renderHistory();
