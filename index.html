@@ -1363,56 +1363,111 @@ function getBenchCountsAcrossGame() {
 function randomizePositions() {
   if (!store.players.length) { alert('Add players to the roster first.'); return; }
   if (!curLineup.length) resetCurLineup();
-  // Only count present players for field/bench math
+
   const presentPlayers = store.players.filter(p => !curAbsent.includes(p.id));
   const n = presentPlayers.length;
   const benchPerInning = Math.max(0, n - POSITIONS.length);
   const logLines = [];
-  const historicBench = getBenchCountsAcrossGame();
+
+  // Historic bench innings per player from saved games (absent-aware)
+  const historicBench = {};
+  presentPlayers.forEach(p => { historicBench[p.id] = getBenchInn(p.id); });
+
+  // Bench counter FOR THIS GAME — starts at 0, tracks rotation within the game
   const thisBench = {};
-  presentPlayers.forEach(p => thisBench[p.id] = 0);
+  presentPlayers.forEach(p => { thisBench[p.id] = 0; });
+
+  // Track who sat the previous inning to penalise back-to-back bench
+  let satLastInning = new Set();
 
   for (let i = 0; i < curInnings; i++) {
     const lineup = curLineup[i];
-    // Ensure absent players are marked in the lineup
+
+    // Mark absent players
     store.players.forEach(p => { if (curAbsent.includes(p.id)) lineup[p.id] = ABSENT; });
+
+    // Detect locked positions (Pitcher / Catcher / 1st Base set by coach)
     const locked = {};
     LOCKED.forEach(pos => {
       const entry = Object.entries(lineup).find(([k,v]) => v === pos);
       if (entry) locked[parseInt(entry[0])] = pos;
     });
-    // Clear non-locked present players
+
+    // Clear every non-locked present player so we start fresh each inning
     presentPlayers.forEach(p => { if (!locked[p.id]) lineup[p.id] = ''; });
     let free = presentPlayers.filter(p => !locked[p.id]);
+
+    // ── BENCH SELECTION ──────────────────────────────────────────────────────
+    // Bench score: higher = more suitable to sit THIS inning.
+    //
+    // Three components:
+    //   1. Historic fairness  — players who have sat LESS across all saved games
+    //      score HIGHER (they are "owed" bench time relative to teammates).
+    //      Weight 3: most important for long-term fairness.
+    //
+    //   2. Within-game rotation penalty — players who have ALREADY sat this game
+    //      score MUCH lower, forcing the bench to rotate to fresh players.
+    //      Weight 15 per inning already sat: strongly prevents double-sitting.
+    //
+    //   3. Back-to-back penalty — player who sat the IMMEDIATELY preceding inning
+    //      gets a heavy one-off penalty (40 pts) to almost always rotate them out.
+    //      This directly fixes the "same kids sit every inning" bug.
+    //
+    //   4. Small random jitter (0–2) breaks exact ties without affecting order.
+
     let benchPlayers = [];
     if (benchPerInning > 0) {
-      const sortedForBench = [...free].sort((a,b) => {
-        const aT = (historicBench[a.id]||0)+(thisBench[a.id]||0);
-        const bT = (historicBench[b.id]||0)+(thisBench[b.id]||0);
-        return bT - aT;
+      const maxHist = Math.max(...presentPlayers.map(p => historicBench[p.id] || 0), 1);
+
+      const scored = free.map(p => {
+        const hist    = historicBench[p.id] || 0;
+        const sitThis = thisBench[p.id] || 0;
+        const backToBack = satLastInning.has(p.id) ? 1 : 0;
+
+        // Invert historic so lower bench history = higher score (more eligible to sit)
+        const historicScore  = (maxHist - hist) * 3;
+        const rotationPenalty = sitThis * 15;
+        const backToBackPenalty = backToBack * 40;
+        const jitter = Math.random() * 2;
+
+        return { p, score: historicScore - rotationPenalty - backToBackPenalty + jitter };
       });
-      benchPlayers = sortedForBench.slice(0, benchPerInning);
+
+      // Highest score sits this inning
+      scored.sort((a, b) => b.score - a.score);
+      benchPlayers = scored.slice(0, benchPerInning).map(s => s.p);
       benchPlayers.forEach(p => { lineup[p.id] = BENCH; thisBench[p.id]++; });
       free = free.filter(p => !benchPlayers.find(b => b.id === p.id));
     }
+
+    // Update back-to-back tracker for next inning
+    satLastInning = new Set(benchPlayers.map(p => p.id));
+
+    // ── FIELD ASSIGNMENT ─────────────────────────────────────────────────────
     let remaining = [...free];
+
     shuffle(INFIELD.filter(pos => !Object.values(locked).includes(pos))).forEach(pos => {
       if (!remaining.length) return;
       const chosen = pickBest(remaining, pos);
       lineup[chosen.id] = pos;
       remaining = remaining.filter(p => p.id !== chosen.id);
     });
+
     shuffle([...OUTFIELD]).forEach(pos => {
       if (!remaining.length) return;
       const chosen = pickBest(remaining, pos);
       lineup[chosen.id] = pos;
       remaining = remaining.filter(p => p.id !== chosen.id);
     });
+
+    // Edge case: any leftover players go to bench
     remaining.forEach(p => { lineup[p.id] = BENCH; thisBench[p.id]++; });
-    const benchNames = benchPlayers.map(p => p.name).join(', ') || 'none';
+
+    const benchNames  = benchPlayers.map(p => p.name).join(', ') || 'none';
     const absentNames = curAbsent.map(id => { const pl = store.players.find(p=>p.id===id); return pl?pl.name:''; }).filter(Boolean);
     logLines.push(`Inning ${i+1}: Bench → ${benchNames}${absentNames.length?' · Absent → '+absentNames.join(', '):''}`);
   }
+
   const logEl = document.getElementById('rng-log');
   logEl.innerHTML = '<b style="color:var(--accent2)">🎲 Randomizer applied</b><br>' + logLines.join('<br>');
   logEl.classList.add('visible');
