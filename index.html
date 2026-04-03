@@ -761,25 +761,22 @@ try {
   auth.onAuthStateChanged(async user => {
     window.currentUser = user;
 
+    // Public view doesn't need auth at all — load and return immediately
     if (PUBLIC_VIEW) {
-      // Public view — don't need auth, just load public game data
       loadPublicView(PUBLIC_VIEW);
       return;
     }
 
     if (!user) {
-      // Not signed in — show sign-in screen
       showSignInScreen();
       return;
     }
 
     window.isLeagueAdmin = (user.uid === ADMIN_UID);
 
-    // Find which team this user belongs to
     const teamId = await findUserTeam(user.uid);
 
     if (!teamId) {
-      // User has no team yet — show team join screen
       showJoinScreen(user);
       return;
     }
@@ -787,15 +784,10 @@ try {
     window.currentTeamId = teamId;
     window.fbConfigured  = true;
 
-    // Listen for data changes on this team
     listenTeamData(teamId);
-
-    // Migrate old flat data if needed (first time for Stumbaugh/admin)
     await maybeMigrateOldData(teamId, user.uid);
 
-    // Signal the app JS that auth is ready
     if (window.onAuthReady) window.onAuthReady(user, teamId);
-
     console.log(`✅ Signed in as ${user.email}, team: ${teamId}`);
   });
 
@@ -838,51 +830,53 @@ try {
     return { teamId: team.id, teamName: team.name };
   };
 
-  // ── MIGRATE OLD DATA (one-time for Stumbaugh) ─────────
+  // ── FIRST-TIME TEAM SETUP (runs for any team on first sign-in) ──────────
   async function maybeMigrateOldData(teamId, uid) {
-    if (teamId !== 'stumbaugh') return;
-
-    // Always ensure admin is in Stumbaugh's authorizedUids so rules pass
-    await teamProfileRef('stumbaugh').child('authorizedUids').child(uid).set(true);
+    // Ensure this coach is in the team's authorizedUids (idempotent)
+    await teamProfileRef(teamId).child('authorizedUids').child(uid).set(true);
 
     // Set team profile if not already done
-    const profileSnap = await teamProfileRef('stumbaugh').once('value');
+    const team = LEAGUE_TEAMS.find(t => t.id === teamId);
+    const profileSnap = await teamProfileRef(teamId).once('value');
     if (!profileSnap.exists() || !profileSnap.val()?.teamName) {
-      await teamProfileRef('stumbaugh').update({
-        teamName:   'Stumbaugh',
-        division:   'Rookies',
+      await teamProfileRef(teamId).update({
+        teamName:   team?.name  || teamId,
+        division:   team?.division || 'Rookies',
         createdAt:  Date.now(),
         coachEmail: window.currentUser?.email || ''
       });
     }
 
-    // Check if team data already exists with real players
-    const existing = await teamDataRef('stumbaugh').once('value');
+    // Check if team data already exists
+    const existing = await teamDataRef(teamId).once('value');
     if (existing.exists() && existing.val()?.players?.length > 0) {
-      console.log('Stumbaugh data already migrated.');
+      // Data already there — push to publicGames so public view is current
+      updatePublicGame(existing.val());
       return;
     }
 
-    // Try to read old flat path diamond/team
-    try {
-      const oldSnap = await db.ref('diamond/team').once('value');
-      const oldData = oldSnap.val();
-      if (oldData && oldData.players && oldData.players.length > 0) {
-        console.log('Migrating Stumbaugh data from old path…');
-        await teamDataRef('stumbaugh').set(oldData);
-        console.log('✅ Migration complete —', oldData.players.length, 'players,', oldData.games?.length || 0, 'games');
-      } else {
-        // No old data — initialise empty
-        await teamDataRef('stumbaugh').set({ players: [], games: [], battingOrder: [], nextBatterId: null });
-      }
-    } catch(e) {
-      console.warn('Migration read failed (rules may block diamond/team):', e.message);
-      // Initialise empty if we can't read old data
-      const check = await teamDataRef('stumbaugh').once('value');
-      if (!check.exists()) {
-        await teamDataRef('stumbaugh').set({ players: [], games: [], battingOrder: [], nextBatterId: null });
+    // For Stumbaugh (admin team), try to migrate from the old flat path
+    if (teamId === 'stumbaugh') {
+      try {
+        const oldSnap = await db.ref('diamond/team').once('value');
+        const oldData = oldSnap.val();
+        if (oldData?.players?.length > 0) {
+          console.log('Migrating Stumbaugh data from legacy path…');
+          await teamDataRef(teamId).set(oldData);
+          updatePublicGame(oldData);
+          updateAdminIndex(oldData);
+          console.log('✅ Migration done —', oldData.players.length, 'players,', oldData.games?.length || 0, 'games');
+          return;
+        }
+      } catch(e) {
+        console.warn('Legacy migration read failed:', e.message);
       }
     }
+
+    // No existing data — initialise empty team
+    const emptyTeamData = { players: [], games: [], battingOrder: [], nextBatterId: null };
+    await teamDataRef(teamId).set(emptyTeamData);
+    updatePublicGame(emptyTeamData);
   }
 
   // ── GOOGLE SIGN-IN via Google Identity Services ───────
@@ -929,10 +923,35 @@ try {
   };
 
   // ── PUBLIC VIEW LOADER ────────────────────────────────
+  // Public view reads from publicGames — no coach auth needed.
+  // We sign in anonymously so Firebase rules (auth != null) pass,
+  // but anonymous users only have read access to publicGames.
   function loadPublicView(teamId) {
-    publicGamesRef(teamId).on('value', snap => {
-      const d = snap.val();
-      if (window.onPublicData) window.onPublicData(d);
+    // Show public page immediately while data loads
+    document.querySelector('main').style.display = 'none';
+    document.getElementById('signin-screen').style.display = 'none';
+    document.getElementById('public-view-page').style.display = 'block';
+    document.getElementById('sync-bar').style.display = '';
+    document.getElementById('view-only-bar').classList.add('visible');
+    document.getElementById('view-only-label').textContent = 'RMLL Rookies — Live Lineup';
+    setSyncStatus('off', 'Loading lineup…');
+
+    // Sign in anonymously to satisfy auth != null rule on publicGames
+    auth.signInAnonymously().then(() => {
+      publicGamesRef(teamId).on('value', snap => {
+        const d = snap.val();
+        if (window.onPublicData) window.onPublicData(d);
+        setSyncStatus('ok', '☁️ Live lineup');
+      }, err => {
+        document.getElementById('public-view-content').innerHTML =
+          `<div class="empty"><div class="icon">⚠️</div>Unable to load lineup. Check back soon.</div>`;
+        setSyncStatus('err', 'Connection error');
+      });
+    }).catch(() => {
+      // If anonymous auth fails, try reading without auth (in case rules allow it)
+      publicGamesRef(teamId).once('value').then(snap => {
+        if (window.onPublicData) window.onPublicData(snap.val());
+      });
     });
   }
 
@@ -2599,15 +2618,18 @@ function renderAdminAuthSection() {
 // ═══════════════════════════════════════════════════════
 let currentPage = 'home';
 
-// If public view mode, hide main app immediately and wait for data
+// Public view — no auth needed, Firebase layer handles it
 if (PUBLIC_VIEW) {
   document.querySelector('main').style.display = 'none';
-  document.getElementById('sync-bar').style.display = '';
+  document.getElementById('signin-screen').style.display = 'none';
+  document.getElementById('join-screen').style.display   = 'none';
+  document.getElementById('sync-bar').style.display      = '';
   setSyncStatus('off', 'Loading lineup…');
 } else {
-  // Hide app until auth resolves
-  document.querySelector('main').style.display = 'none';
-  document.getElementById('sync-bar').style.display = 'none';
+  // Normal app — hide everything until Firebase auth resolves
+  document.querySelector('main').style.display           = 'none';
+  document.getElementById('signin-screen').style.display = 'none';
+  document.getElementById('sync-bar').style.display      = 'none';
 }
 </script>
 </body>
