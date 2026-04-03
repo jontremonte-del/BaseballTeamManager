@@ -394,7 +394,11 @@ body.view-only .edit-control{opacity:.35;pointer-events:none;cursor:not-allowed}
       </div>
     </div>
     <div class="form-row" style="margin-bottom:14px;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-purple btn-sm edit-control" onclick="randomizePositions()">🎲 Randomize Remaining</button>
+      <div class="toggle-group" id="rng-mode-toggle">
+        <button class="active" onclick="setRngMode('regular',this)" title="Fair bench rotation, outfield avoidance, preference scoring">🔄 Regular Season</button>
+        <button onclick="setRngMode('playoff',this)" title="Best players at strongest historical positions">🏆 Playoff</button>
+      </div>
+      <button class="btn btn-purple btn-sm edit-control" onclick="runRandomizer()">🎲 Auto-Fill</button>
       <button class="btn btn-ghost btn-sm edit-control" onclick="clearAllPositions()">✕ Clear All</button>
       <button class="btn btn-blue btn-sm" onclick="openCopyModal(curLineup, document.getElementById('game-date').value)">📋 Copy Plan</button>
       <div style="flex:1"></div>
@@ -1335,6 +1339,191 @@ function unmarkAbsent(pid) {
 
 // ═══════════════════════════════════════════════════════
 // RANDOMIZER
+// ═══════════════════════════════════════════════════════
+// RANDOMIZER — mode dispatch + playoff engine
+// ═══════════════════════════════════════════════════════
+let playoffMode = false;
+
+function setRngMode(mode, btn) {
+  playoffMode = (mode === 'playoff');
+  document.querySelectorAll('#rng-mode-toggle button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function runRandomizer() {
+  if (playoffMode) randomizePlayoff();
+  else randomizePositions();
+}
+
+// ── Historical rep counts ──────────────────────────────
+// Returns { playerId: { position: inningCount, ... }, ... }
+// Only counts games where the player was not absent.
+function getRepCounts() {
+  const reps = {};
+  store.players.forEach(p => {
+    reps[p.id] = {};
+    POSITIONS.forEach(pos => { reps[p.id][pos] = 0; });
+  });
+  store.games.forEach(g => {
+    const absent = g.absent || [];
+    g.innings.forEach(inn => {
+      Object.entries(inn).forEach(([pid, pos]) => {
+        const id = parseInt(pid);
+        if (POSITIONS.includes(pos) && !absent.includes(id) && reps[id]) {
+          reps[id][pos] = (reps[id][pos] || 0) + 1;
+        }
+      });
+    });
+  });
+  return reps;
+}
+
+// Return player's top position by rep count, with pref as tiebreaker
+function topPosition(player, reps, exclude) {
+  const r = reps[player.id] || {};
+  return POSITIONS
+    .filter(pos => !exclude.has(pos))
+    .sort((a, b) => {
+      const diff = (r[b] || 0) - (r[a] || 0);
+      if (diff !== 0) return diff;
+      // tiebreak: preference order
+      return prefScore(player, b) - prefScore(player, a);
+    })[0] || null;
+}
+
+// ── PLAYOFF RANDOMIZER ────────────────────────────────
+// Assigns ALL positions (not just remaining) based on historical reps.
+// Every player gets their strongest position. Bench is minimised —
+// if there are exactly 10 present players, nobody sits.
+// Coach-locked positions (Pitcher / Catcher / 1st Base) are respected.
+function randomizePlayoff() {
+  if (!store.players.length) { alert('Add players to the roster first.'); return; }
+  if (!curLineup.length) resetCurLineup();
+
+  const hasHistory = store.games.length > 0;
+  const reps = getRepCounts();
+  const present = store.players.filter(p => !curAbsent.includes(p.id));
+  const n = present.length;
+  const logLines = [];
+
+  for (let i = 0; i < curInnings; i++) {
+    const lineup = curLineup[i];
+
+    // Mark absent
+    store.players.forEach(p => { if (curAbsent.includes(p.id)) lineup[p.id] = ABSENT; });
+
+    // Respect coach-locked positions
+    const locked = {};     // pid → position
+    const lockedPos = new Set();
+    LOCKED.forEach(pos => {
+      const entry = Object.entries(lineup).find(([k,v]) => v === pos);
+      if (entry) {
+        const pid = parseInt(entry[0]);
+        locked[pid] = pos;
+        lockedPos.add(pos);
+      }
+    });
+
+    // Clear non-locked present players
+    present.forEach(p => { if (!locked[p.id]) lineup[p.id] = ''; });
+
+    // Pool of players and positions still available
+    let available = present.filter(p => !locked[p.id]);
+    const takenPos = new Set(lockedPos);
+
+    // ── Score every player × every open position ──────────────────────────
+    // playoff score = reps at that position (primary) + prefScore (tiebreaker)
+    // We run a greedy assignment: repeatedly pick the player+position pair with
+    // the highest score, assign it, remove both from the pool.
+
+    const inningLog = [];
+
+    // How many field slots are open?
+    const openFieldSlots = POSITIONS.filter(pos => !takenPos.has(pos)).length;
+    const benchCount = Math.max(0, available.length - openFieldSlots);
+
+    // Build all possible (player, position) pairs with scores
+    function buildPairs(players, positions) {
+      const pairs = [];
+      players.forEach(p => {
+        positions.forEach(pos => {
+          const repCount = (reps[p.id] && reps[p.id][pos]) || 0;
+          const pref     = prefScore(p, pos);
+          // Primary: reps. Secondary: preference. Tiny jitter for tie variance.
+          const score = repCount * 10 + pref + Math.random() * 0.5;
+          pairs.push({ p, pos, score, repCount, pref });
+        });
+      });
+      return pairs.sort((a, b) => b.score - a.score);
+    }
+
+    let remainingPlayers  = [...available];
+    let remainingPos      = POSITIONS.filter(pos => !takenPos.has(pos));
+
+    // Greedy assignment
+    while (remainingPlayers.length > 0 && remainingPos.length > 0) {
+      // If we have more players than positions, the extras go to bench
+      if (remainingPlayers.length <= remainingPos.length) {
+        // Straight fill — everyone plays
+        const pairs = buildPairs(remainingPlayers, remainingPos);
+        const assigned = new Set();
+        const assignedPos = new Set();
+        for (const pair of pairs) {
+          if (assigned.has(pair.p.id) || assignedPos.has(pair.pos)) continue;
+          lineup[pair.p.id] = pair.pos;
+          const repStr = hasHistory ? ` (${pair.repCount} inn)` : '';
+          inningLog.push(`${pair.pos}: #${pair.p.number} ${pair.p.name}${repStr}`);
+          assigned.add(pair.p.id);
+          assignedPos.add(pair.pos);
+        }
+        break;
+      } else {
+        // More players than positions — fill all positions, bench the rest
+        const pairs = buildPairs(remainingPlayers, remainingPos);
+        const assigned = new Set();
+        const assignedPos = new Set();
+        for (const pair of pairs) {
+          if (assigned.has(pair.p.id) || assignedPos.has(pair.pos)) continue;
+          lineup[pair.p.id] = pair.pos;
+          const repStr = hasHistory ? ` (${pair.repCount} inn)` : '';
+          inningLog.push(`${pair.pos}: #${pair.p.number} ${pair.p.name}${repStr}`);
+          assigned.add(pair.p.id);
+          assignedPos.add(pair.pos);
+        }
+        // Bench whoever didn't get a position
+        remainingPlayers
+          .filter(p => !assigned.has(p.id))
+          .forEach(p => {
+            lineup[p.id] = BENCH;
+            inningLog.push(`Bench: #${p.number} ${p.name}`);
+          });
+        break;
+      }
+    }
+
+    // Log locked positions too
+    Object.entries(locked).forEach(([pid, pos]) => {
+      const p = store.players.find(pl => pl.id === parseInt(pid));
+      if (p) {
+        const repCount = (reps[p.id] && reps[p.id][pos]) || 0;
+        const repStr = hasHistory ? ` (${repCount} inn, coach-locked)` : ' (coach-locked)';
+        inningLog.push(`${pos}: #${p.number} ${p.name}${repStr}`);
+      }
+    });
+
+    inningLog.sort(); // alphabetical by position name for readability
+    logLines.push(`<b>Inning ${i+1}</b><br>${inningLog.map(l => `&nbsp;&nbsp;${l}`).join('<br>')}`);
+  }
+
+  const logEl = document.getElementById('rng-log');
+  const noHistoryWarning = !hasHistory
+    ? '<span style="color:var(--accent)">⚠️ No saved games yet — using position preferences only. Save games to build historical rep data.</span><br><br>'
+    : '';
+  logEl.innerHTML = `<b style="color:var(--rmll-gold)">🏆 Playoff Mode applied</b> — positions ranked by historical innings<br><br>${noHistoryWarning}` + logLines.join('<br><br>');
+  logEl.classList.add('visible');
+  renderCurrentView(); maybeUpdateBatting();
+}
+
 // ═══════════════════════════════════════════════════════
 function shuffle(arr) {
   for (let i = arr.length-1; i > 0; i--) {
