@@ -645,7 +645,7 @@ const FB_CONFIG = {
 // ── LEAGUE CONFIG ─────────────────────────────────────
 // Six RMLL Rookies teams pre-configured with invite codes.
 // ADMIN_UID is set after first sign-in — placeholder replaced once you send it.
-const ADMIN_UID = 'REPLACE_WITH_YOUR_UID_AFTER_FIRST_LOGIN';
+const ADMIN_UID = 'Ndoitjnw9wdbEiouiutuXJJgGZX2';
 
 const LEAGUE_TEAMS = [
   { id:'stumbaugh',  name:'Stumbaugh',  division:'Rookies', code:'STUMB1' },
@@ -841,15 +841,47 @@ try {
   // ── MIGRATE OLD DATA (one-time for Stumbaugh) ─────────
   async function maybeMigrateOldData(teamId, uid) {
     if (teamId !== 'stumbaugh') return;
-    const existing = await teamDataRef(teamId).once('value');
-    if (existing.exists() && existing.val()?.players?.length > 0) return; // already migrated
-    // Try to read old flat path
-    const oldSnap = await db.ref('diamond/team').once('value');
-    const oldData = oldSnap.val();
-    if (oldData && oldData.players && oldData.players.length > 0) {
-      console.log('Migrating Stumbaugh data from old path…');
-      await teamDataRef(teamId).set(oldData);
-      // Don't delete old path — leave it as backup
+
+    // Always ensure admin is in Stumbaugh's authorizedUids so rules pass
+    await teamProfileRef('stumbaugh').child('authorizedUids').child(uid).set(true);
+
+    // Set team profile if not already done
+    const profileSnap = await teamProfileRef('stumbaugh').once('value');
+    if (!profileSnap.exists() || !profileSnap.val()?.teamName) {
+      await teamProfileRef('stumbaugh').update({
+        teamName:   'Stumbaugh',
+        division:   'Rookies',
+        createdAt:  Date.now(),
+        coachEmail: window.currentUser?.email || ''
+      });
+    }
+
+    // Check if team data already exists with real players
+    const existing = await teamDataRef('stumbaugh').once('value');
+    if (existing.exists() && existing.val()?.players?.length > 0) {
+      console.log('Stumbaugh data already migrated.');
+      return;
+    }
+
+    // Try to read old flat path diamond/team
+    try {
+      const oldSnap = await db.ref('diamond/team').once('value');
+      const oldData = oldSnap.val();
+      if (oldData && oldData.players && oldData.players.length > 0) {
+        console.log('Migrating Stumbaugh data from old path…');
+        await teamDataRef('stumbaugh').set(oldData);
+        console.log('✅ Migration complete —', oldData.players.length, 'players,', oldData.games?.length || 0, 'games');
+      } else {
+        // No old data — initialise empty
+        await teamDataRef('stumbaugh').set({ players: [], games: [], battingOrder: [], nextBatterId: null });
+      }
+    } catch(e) {
+      console.warn('Migration read failed (rules may block diamond/team):', e.message);
+      // Initialise empty if we can't read old data
+      const check = await teamDataRef('stumbaugh').once('value');
+      if (!check.exists()) {
+        await teamDataRef('stumbaugh').set({ players: [], games: [], battingOrder: [], nextBatterId: null });
+      }
     }
   }
 
