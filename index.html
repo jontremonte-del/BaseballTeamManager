@@ -1401,125 +1401,187 @@ function randomizePlayoff() {
   if (!curLineup.length) resetCurLineup();
 
   const hasHistory = store.games.length > 0;
-  const reps = getRepCounts();
-  const present = store.players.filter(p => !curAbsent.includes(p.id));
-  const n = present.length;
-  const logLines = [];
+  const reps       = getRepCounts();
+  const present    = store.players.filter(p => !curAbsent.includes(p.id));
+  const logLines   = [];
+
+  // ── Across-game state ────────────────────────────────────────────────────
+  // Bench rotation: no player sits twice until all have sat once
+  const thisBench = {};
+  present.forEach(p => { thisBench[p.id] = 0; });
+
+  // Pitcher pitch-count rules:
+  //   pitchingInnings[pid]   = total innings pitched this game
+  //   removedFromPitching    = Set of pids who pitched then stopped (can't return)
+  //   pitchedLastInning      = Set of pids who pitched the previous inning
+  const pitchingInnings    = {};
+  const removedFromPitching = new Set();
+  let   pitchedLastInning   = new Set();
+  present.forEach(p => { pitchingInnings[p.id] = 0; });
+
+  // ── Helper: can this player pitch this inning? ───────────────────────────
+  function canPitch(pid) {
+    if (removedFromPitching.has(pid)) return false; // once removed, never again
+    if ((pitchingInnings[pid] || 0) >= 2) return false; // max 2 innings
+    return true;
+  }
+
+  // ── Build scoring pairs, filtering illegal pitcher assignments ────────────
+  function buildPairs(players, positions, reps) {
+    const pairs = [];
+    players.forEach(p => {
+      positions.forEach(pos => {
+        // Enforce pitcher eligibility
+        if (pos === 'Pitcher' && !canPitch(p.id)) return;
+        const repCount = (reps[p.id] && reps[p.id][pos]) || 0;
+        const pref     = prefScore(p, pos);
+        const score    = repCount * 10 + pref + Math.random() * 0.5;
+        pairs.push({ p, pos, score, repCount });
+      });
+    });
+    return pairs.sort((a, b) => b.score - a.score);
+  }
 
   for (let i = 0; i < curInnings; i++) {
-    const lineup = curLineup[i];
+    const lineup    = curLineup[i];
+    const inningLog = [];
 
     // Mark absent
     store.players.forEach(p => { if (curAbsent.includes(p.id)) lineup[p.id] = ABSENT; });
 
-    // Respect coach-locked positions
-    const locked = {};     // pid → position
+    // Detect coach-locked positions (Pitcher/Catcher/1st Base already set)
+    const locked    = {};          // pid → pos
     const lockedPos = new Set();
     LOCKED.forEach(pos => {
       const entry = Object.entries(lineup).find(([k,v]) => v === pos);
       if (entry) {
         const pid = parseInt(entry[0]);
-        locked[pid] = pos;
-        lockedPos.add(pos);
+        // Enforce pitcher rules even on coach-locked pitcher
+        if (pos === 'Pitcher' && !canPitch(pid)) {
+          // Can't lock an ineligible pitcher — clear it
+          lineup[pid] = '';
+        } else {
+          locked[pid] = pos;
+          lockedPos.add(pos);
+        }
       }
     });
 
     // Clear non-locked present players
     present.forEach(p => { if (!locked[p.id]) lineup[p.id] = ''; });
 
-    // Pool of players and positions still available
-    let available = present.filter(p => !locked[p.id]);
-    const takenPos = new Set(lockedPos);
+    let available    = present.filter(p => !locked[p.id]);
+    const openSlots  = POSITIONS.filter(pos => !lockedPos.has(pos)).length;
+    const benchCount = Math.max(0, available.length - openSlots);
 
-    // ── Score every player × every open position ──────────────────────────
-    // playoff score = reps at that position (primary) + prefScore (tiebreaker)
-    // We run a greedy assignment: repeatedly pick the player+position pair with
-    // the highest score, assign it, remove both from the pool.
+    // ── BENCH SELECTION (fairness-first) ─────────────────────────────────
+    // Exactly like regular season: rotate bench so no one sits twice
+    // before everyone has sat once. No bench back-to-back in playoffs either.
+    let benchPlayers = [];
+    if (benchCount > 0) {
+      // Sort bench candidates: fewest bench innings this game first,
+      // then by total historic bench (most benched historically = lower priority to sit again)
+      const historicBench = {};
+      present.forEach(p => { historicBench[p.id] = getBenchInn(p.id); });
+      const maxHist = Math.max(...present.map(p => historicBench[p.id] || 0), 1);
 
-    const inningLog = [];
-
-    // How many field slots are open?
-    const openFieldSlots = POSITIONS.filter(pos => !takenPos.has(pos)).length;
-    const benchCount = Math.max(0, available.length - openFieldSlots);
-
-    // Build all possible (player, position) pairs with scores
-    function buildPairs(players, positions) {
-      const pairs = [];
-      players.forEach(p => {
-        positions.forEach(pos => {
-          const repCount = (reps[p.id] && reps[p.id][pos]) || 0;
-          const pref     = prefScore(p, pos);
-          // Primary: reps. Secondary: preference. Tiny jitter for tie variance.
-          const score = repCount * 10 + pref + Math.random() * 0.5;
-          pairs.push({ p, pos, score, repCount, pref });
-        });
-      });
-      return pairs.sort((a, b) => b.score - a.score);
+      const scored = available.map(p => ({
+        p,
+        score: (maxHist - (historicBench[p.id] || 0)) * 3
+               - (thisBench[p.id] || 0) * 15
+               + Math.random() * 2
+      }));
+      scored.sort((a, b) => b.score - a.score);
+      benchPlayers = scored.slice(0, benchCount).map(s => s.p);
+      benchPlayers.forEach(p => { lineup[p.id] = BENCH; thisBench[p.id]++; });
+      available = available.filter(p => !benchPlayers.find(b => b.id === p.id));
+      benchPlayers.forEach(p => inningLog.push(`🪑 Bench: #${p.number} ${p.name}`));
     }
 
-    let remainingPlayers  = [...available];
-    let remainingPos      = POSITIONS.filter(pos => !takenPos.has(pos));
+    // ── POSITION ASSIGNMENT (greedy best-fit by reps) ─────────────────────
+    let remainingPlayers = [...available];
+    let remainingPos     = POSITIONS.filter(pos => !lockedPos.has(pos));
 
-    // Greedy assignment
-    while (remainingPlayers.length > 0 && remainingPos.length > 0) {
-      // If we have more players than positions, the extras go to bench
-      if (remainingPlayers.length <= remainingPos.length) {
-        // Straight fill — everyone plays
-        const pairs = buildPairs(remainingPlayers, remainingPos);
-        const assigned = new Set();
-        const assignedPos = new Set();
-        for (const pair of pairs) {
-          if (assigned.has(pair.p.id) || assignedPos.has(pair.pos)) continue;
-          lineup[pair.p.id] = pair.pos;
-          const repStr = hasHistory ? ` (${pair.repCount} inn)` : '';
-          inningLog.push(`${pair.pos}: #${pair.p.number} ${pair.p.name}${repStr}`);
-          assigned.add(pair.p.id);
-          assignedPos.add(pair.pos);
-        }
-        break;
-      } else {
-        // More players than positions — fill all positions, bench the rest
-        const pairs = buildPairs(remainingPlayers, remainingPos);
-        const assigned = new Set();
-        const assignedPos = new Set();
-        for (const pair of pairs) {
-          if (assigned.has(pair.p.id) || assignedPos.has(pair.pos)) continue;
-          lineup[pair.p.id] = pair.pos;
-          const repStr = hasHistory ? ` (${pair.repCount} inn)` : '';
-          inningLog.push(`${pair.pos}: #${pair.p.number} ${pair.p.name}${repStr}`);
-          assigned.add(pair.p.id);
-          assignedPos.add(pair.pos);
-        }
-        // Bench whoever didn't get a position
-        remainingPlayers
-          .filter(p => !assigned.has(p.id))
-          .forEach(p => {
-            lineup[p.id] = BENCH;
-            inningLog.push(`Bench: #${p.number} ${p.name}`);
-          });
-        break;
-      }
+    const assignedPids = new Set(Object.keys(locked).map(Number));
+    const assignedPos  = new Set(lockedPos);
+
+    const pairs = buildPairs(remainingPlayers, remainingPos, reps);
+    for (const pair of pairs) {
+      if (assignedPids.has(pair.p.id) || assignedPos.has(pair.pos)) continue;
+      lineup[pair.p.id] = pair.pos;
+      assignedPids.add(pair.p.id);
+      assignedPos.add(pair.pos);
+      const repStr = hasHistory ? ` (${pair.repCount} inn)` : '';
+      inningLog.push(`${pair.pos}: #${pair.p.number} ${pair.p.name}${repStr}`);
     }
 
-    // Log locked positions too
+    // Any remaining players with no position go to bench (edge case)
+    remainingPlayers.filter(p => !assignedPids.has(p.id)).forEach(p => {
+      lineup[p.id] = BENCH;
+      thisBench[p.id]++;
+      inningLog.push(`🪑 Bench: #${p.number} ${p.name} (no eligible position)`);
+    });
+
+    // Log coach-locked positions
     Object.entries(locked).forEach(([pid, pos]) => {
       const p = store.players.find(pl => pl.id === parseInt(pid));
       if (p) {
         const repCount = (reps[p.id] && reps[p.id][pos]) || 0;
-        const repStr = hasHistory ? ` (${repCount} inn, coach-locked)` : ' (coach-locked)';
+        const repStr = hasHistory ? ` (${repCount} inn, coach-set)` : ' (coach-set)';
         inningLog.push(`${pos}: #${p.number} ${p.name}${repStr}`);
       }
     });
 
-    inningLog.sort(); // alphabetical by position name for readability
-    logLines.push(`<b>Inning ${i+1}</b><br>${inningLog.map(l => `&nbsp;&nbsp;${l}`).join('<br>')}`);
+    // ── UPDATE PITCHER STATE ──────────────────────────────────────────────
+    // Who is pitching this inning?
+    const pitcherEntry = Object.entries(lineup).find(([k,v]) => v === 'Pitcher');
+    const pitcherPid   = pitcherEntry ? parseInt(pitcherEntry[0]) : null;
+
+    // Anyone who pitched last inning but is NOT pitching this inning is removed
+    pitchedLastInning.forEach(pid => {
+      if (pid !== pitcherPid) removedFromPitching.add(pid);
+    });
+
+    // Increment inning count for current pitcher
+    if (pitcherPid !== null) {
+      pitchingInnings[pitcherPid] = (pitchingInnings[pitcherPid] || 0) + 1;
+      const inn = pitchingInnings[pitcherPid];
+      const p   = store.players.find(pl => pl.id === pitcherPid);
+      if (p && inn === 2) {
+        inningLog.push(`⚠️ #${p.number} ${p.name} has now pitched 2 innings — pitch limit reached`);
+      }
+    }
+    pitchedLastInning = pitcherPid !== null ? new Set([pitcherPid]) : new Set();
+
+    // Sort log: positions alphabetical, bench at bottom
+    const fieldLog = inningLog.filter(l => !l.startsWith('🪑') && !l.startsWith('⚠️'));
+    const benchLog = inningLog.filter(l => l.startsWith('🪑'));
+    const warnLog  = inningLog.filter(l => l.startsWith('⚠️'));
+    fieldLog.sort();
+    const sortedLog = [...fieldLog, ...benchLog, ...warnLog];
+
+    logLines.push(`<b>Inning ${i+1}</b><br>${sortedLog.map(l => `&nbsp;&nbsp;${l}`).join('<br>')}`);
   }
+
+  // Summary: show pitcher usage across game
+  const pitcherSummary = present
+    .filter(p => pitchingInnings[p.id] > 0)
+    .map(p => {
+      const inn = pitchingInnings[p.id];
+      const removed = removedFromPitching.has(p.id);
+      return `#${p.number} ${p.name}: ${inn} inning${inn>1?'s':''} pitched${removed?' (removed — cannot return)':''}`;
+    });
 
   const logEl = document.getElementById('rng-log');
   const noHistoryWarning = !hasHistory
-    ? '<span style="color:var(--accent)">⚠️ No saved games yet — using position preferences only. Save games to build historical rep data.</span><br><br>'
+    ? '<span style="color:var(--accent)">⚠️ No saved game history yet — using position preferences only.</span><br><br>'
     : '';
-  logEl.innerHTML = `<b style="color:var(--rmll-gold)">🏆 Playoff Mode applied</b> — positions ranked by historical innings<br><br>${noHistoryWarning}` + logLines.join('<br><br>');
+  const pitcherNote = pitcherSummary.length
+    ? `<br><br><b style="color:var(--rmll-gold)">⚾ Pitcher Usage</b><br>${pitcherSummary.map(s=>`&nbsp;&nbsp;${s}`).join('<br>')}`
+    : '';
+
+  logEl.innerHTML = `<b style="color:var(--rmll-gold)">🏆 Playoff Mode</b> — historical reps · fair bench · pitch-count rules<br><br>${noHistoryWarning}` +
+    logLines.join('<br><br>') + pitcherNote;
   logEl.classList.add('visible');
   renderCurrentView(); maybeUpdateBatting();
 }
