@@ -980,16 +980,18 @@ function emptyStore() {
 }
 
 function loadStore() {
-  // Try current key, then migrate from older keys
   for (const key of [STORAGE_KEY, 'diamond_v3', 'diamond_manager']) {
     try {
       const d = JSON.parse(localStorage.getItem(key));
       if (d && Array.isArray(d.players)) {
-        if (key !== STORAGE_KEY) {
-          console.log('Migrated from', key);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
-        }
-        return { ...emptyStore(), ...d };
+        if (key !== STORAGE_KEY) localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+        // Always merge with emptyStore so every property is guaranteed an array
+        return {
+          players:      Array.isArray(d.players)      ? d.players      : [],
+          games:        Array.isArray(d.games)         ? d.games        : [],
+          battingOrder: Array.isArray(d.battingOrder)  ? d.battingOrder : [],
+          nextBatterId: d.nextBatterId || null
+        };
       }
     } catch(e) {}
   }
@@ -1031,21 +1033,18 @@ function persistSeasons() {
 // ═══════════════════════════════════════════════════════
 window.onFirebaseData = function(data) {
   if (!data) {
-    // DB empty — push local data up and we're done
-    setSyncStatus('ok', '☁️ Firebase ready — pushing local data…');
-    if (window.fbSave) {
-      window._lastWriteAt = Date.now();
-      window.fbSave(store);
-    }
+    // Nothing in DB — push local store up
+    setSyncStatus('ok', '☁️ Firebase ready');
+    if (window.fbSave) { window._lastWriteAt = Date.now(); window.fbSave(store); }
     return;
   }
-
-  data.players      = data.players      || [];
-  data.games        = data.games        || [];
-  data.battingOrder = data.battingOrder || [];
-  data.nextBatterId = data.nextBatterId || null;
-
-  store = data;
+  // Normalise — always guarantee arrays regardless of what Firebase returns
+  store = {
+    players:      Array.isArray(data.players)      ? data.players      : [],
+    games:        Array.isArray(data.games)         ? data.games        : [],
+    battingOrder: Array.isArray(data.battingOrder)  ? data.battingOrder : [],
+    nextBatterId: data.nextBatterId || null
+  };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
   renderAll();
   setSyncStatus('ok', '☁️ Live — all devices in sync');
@@ -1065,8 +1064,8 @@ function renderAll() {
 // HOME PAGE
 // ═══════════════════════════════════════════════════════
 function renderHome() {
-  document.getElementById('hs-players').textContent = store.players.length;
-  document.getElementById('hs-games').textContent   = store.games.length;
+  document.getElementById('hs-players').textContent = (store.players||[]).length;
+  document.getElementById('hs-games').textContent   = (store.games||[]).length;
   const today    = new Date().toISOString().slice(0, 10);
   const nextGame = store.games.filter(g => g.date >= today).sort((a,b) => a.date.localeCompare(b.date))[0];
   const el = document.getElementById('hs-next');
@@ -1312,10 +1311,9 @@ function buildPrefBtns(p) {
 
 function getBenchInn(pid) {
   let t = 0;
-  store.games.forEach(g => {
-    // Skip if this player was marked absent for this game
+  (store.games || []).forEach(g => {
     if (g.absent && g.absent.includes(pid)) return;
-    g.innings.forEach(inn => { if (inn[pid] === BENCH) t++; });
+    (g.innings || []).forEach(inn => { if (inn[pid] === BENCH) t++; });
   });
   return t;
 }
@@ -2227,7 +2225,7 @@ function renderStats() {
 function renderHistory() {
   const listEl = document.getElementById('history-list');
   const empty  = document.getElementById('history-empty');
-  if (!store.games.length) { listEl.innerHTML=''; empty.style.display=''; return; }
+  if (!(store.games||[]).length) { listEl.innerHTML=''; empty.style.display=''; return; }
   empty.style.display = 'none';
   listEl.innerHTML = [...store.games].sort((a,b) => b.date.localeCompare(a.date)).map(g => {
     const bs = g.innings.map((inn,i) => {
