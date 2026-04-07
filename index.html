@@ -730,26 +730,15 @@ try {
   }
 
   // ── AUTH STATE HANDLER ────────────────────────────────
-  // Called once auth state is known. Separated from onAuthStateChanged
-  // so we can safely wait for the app JS to be ready.
   async function _handleAuthUser(user) {
-    // ── PUBLIC VIEW: no coach auth needed ───────────────
-    if (PUBLIC_VIEW) {
-      _loadPublicView(PUBLIC_VIEW);
-      return;
-    }
+    if (PUBLIC_VIEW) { _loadPublicView(PUBLIC_VIEW); return; }
 
-    // ── No user or anonymous user: show sign-in ─────────
     if (!user || user.isAnonymous) {
-      if (user && user.isAnonymous) {
-        // Sign out stale anonymous session so coach can sign in cleanly
-        await auth.signOut();
-      }
+      if (user?.isAnonymous) await auth.signOut().catch(()=>{});
       if (window.showSignInScreen) window.showSignInScreen();
       return;
     }
 
-    // ── Authenticated Google user ────────────────────────
     window.currentUser   = user;
     window.isLeagueAdmin = (user.uid === ADMIN_UID);
 
@@ -762,47 +751,58 @@ try {
     window.currentTeamId = teamId;
     window.fbConfigured  = true;
 
-    // Show the app UI immediately (renders with empty/local store for now)
+    // Show app immediately
     if (window.onAuthReady) window.onAuthReady(user, teamId);
 
-    // Load team data directly with once() — bypasses listener timing issues
-    try {
-      console.log('📂 Loading data from:', `diamond/teams/${teamId}/data`);
-      const snap = await teamDataRef(teamId).once('value');
-      console.log('📂 Snapshot exists:', snap.exists(), '| val keys:', snap.val() ? Object.keys(snap.val()) : 'null');
-      const data = snap.val();
-      if (data) {
-        window._lastWriteAt = 0; // reset so onFirebaseData isn't suppressed
-        if (window.onFirebaseData) window.onFirebaseData(data);
-      } else {
-        console.warn('⚠️ No data at team path. Checking legacy path...');
-        // Try reading directly from old path as fallback
-        try {
-          const legacySnap = await db.ref('diamond/team').once('value');
-          const legacyData = legacySnap.val();
-          console.log('📂 Legacy path data:', legacyData ? `${legacyData.players?.length} players` : 'empty');
-          if (legacyData?.players?.length > 0) {
-            // Write to new path and load
-            await teamDataRef(teamId).set(legacyData);
-            window._lastWriteAt = 0;
-            if (window.onFirebaseData) window.onFirebaseData(legacyData);
-          }
-        } catch(le) {
-          console.warn('Legacy path read failed:', le.message);
-        }
-      }
-    } catch(e) {
-      console.warn('❌ Initial data load failed:', e.code, e.message);
-    }
+    // Load data — try new path first, then legacy, then empty
+    await _loadTeamData(teamId);
 
-    // Attach live listener — suppress its immediate duplicate callback
+    // Attach live listener for real-time multi-device sync
+    // Set _lastWriteAt first so the listener's immediate callback is suppressed
     window._lastWriteAt = Date.now();
     _listenTeamData(teamId);
 
-    // First-time setup runs in background (idempotent every sign-in)
-    _firstTimeSetup(teamId, user).catch(e => console.warn('Setup:', e.message));
+    // Background: keep profile + publicGames fresh (non-blocking)
+    _firstTimeSetup(teamId, user).catch(() => {});
 
-    console.log(`✅ ${user.email} → team: ${teamId}`);
+    console.log(`✅ ${user.email} → ${teamId}`);
+  }
+
+  async function _loadTeamData(teamId) {
+    // Try new path
+    try {
+      const snap = await teamDataRef(teamId).once('value');
+      if (snap.exists() && snap.val()?.players?.length > 0) {
+        console.log(`✅ Data loaded: ${snap.val().players.length} players, ${snap.val().games?.length||0} games`);
+        window._lastWriteAt = 0;
+        if (window.onFirebaseData) window.onFirebaseData(snap.val());
+        return;
+      }
+    } catch(e) {
+      console.warn('New path read error:', e.code);
+    }
+
+    // Try legacy path
+    try {
+      const snap = await db.ref('diamond/team').once('value');
+      if (snap.exists() && snap.val()?.players?.length > 0) {
+        const data = snap.val();
+        console.log(`✅ Legacy data found: ${data.players.length} players — migrating…`);
+        await teamDataRef(teamId).set(data);
+        window._lastWriteAt = 0;
+        if (window.onFirebaseData) window.onFirebaseData(data);
+        return;
+      }
+    } catch(e) {
+      console.warn('Legacy path read error:', e.code);
+    }
+
+    // Nothing found — initialise empty store
+    console.log('No data found — starting with empty store');
+    const empty = { players:[], games:[], battingOrder:[], nextBatterId:null };
+    try { await teamDataRef(teamId).set(empty); } catch(e) {}
+    window._lastWriteAt = 0;
+    if (window.onFirebaseData) window.onFirebaseData(empty);
   }
 
   // ── REGISTER AUTH STATE CHANGE ────────────────────────
@@ -843,45 +843,23 @@ try {
   };
 
   // ── FIRST-TIME TEAM SETUP ─────────────────────────────
+  // Writes profile metadata and syncs publicGames. Runs in background.
   async function _firstTimeSetup(teamId, user) {
-    // Ensure coach is authorised (idempotent write)
-    await teamProfileRef(teamId).child('authorizedUids').child(user.uid).set(true);
-
-    // Write team profile if missing
-    const profileSnap = await teamProfileRef(teamId).once('value');
-    if (!profileSnap.val()?.teamName) {
-      const team = LEAGUE_TEAMS.find(t => t.id === teamId);
-      await teamProfileRef(teamId).update({
-        teamName: team?.name || teamId, division: team?.division || 'Rookies',
-        createdAt: Date.now(), coachEmail: user.email
-      });
+    const team = LEAGUE_TEAMS.find(t => t.id === teamId);
+    // Ensure authorizedUids contains this coach
+    await teamProfileRef(teamId).child('authorizedUids').child(user.uid).set(true).catch(()=>{});
+    // Write profile if missing
+    await teamProfileRef(teamId).update({
+      teamName:   team?.name     || teamId,
+      division:   team?.division || 'Rookies',
+      coachEmail: user.email
+    }).catch(()=>{});
+    // Sync publicGames with current store data
+    const snap = await teamDataRef(teamId).once('value').catch(()=>null);
+    if (snap?.exists()) {
+      _updatePublicGame(snap.val());
+      _updateAdminIndex(snap.val());
     }
-
-    // Check if data exists
-    const existing = await teamDataRef(teamId).once('value');
-    if (existing.exists() && existing.val()?.players?.length > 0) {
-      _updatePublicGame(existing.val());
-      return; // already set up
-    }
-
-    // Stumbaugh only: try migrating from legacy flat path
-    if (teamId === 'stumbaugh') {
-      try {
-        const oldSnap = await db.ref('diamond/team').once('value');
-        const oldData = oldSnap.val();
-        if (oldData?.players?.length > 0) {
-          await teamDataRef(teamId).set(oldData);
-          _updatePublicGame(oldData);
-          console.log('✅ Legacy data migrated');
-          return;
-        }
-      } catch(e) { console.warn('Legacy read failed:', e.message); }
-    }
-
-    // Initialise empty
-    const empty = { players:[], games:[], battingOrder:[], nextBatterId:null };
-    await teamDataRef(teamId).set(empty);
-    _updatePublicGame(empty);
   }
 
   // ── GOOGLE SIGN-IN via GIS ────────────────────────────
