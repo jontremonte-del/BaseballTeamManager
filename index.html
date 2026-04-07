@@ -642,9 +642,6 @@ const FB_CONFIG = {
   appId:             "1:1078601639441:web:f4d85bb0efcf15295ab3b0"
 };
 
-// ── LEAGUE CONFIG ─────────────────────────────────────
-// Six RMLL Rookies teams pre-configured with invite codes.
-// ADMIN_UID is set after first sign-in — placeholder replaced once you send it.
 const ADMIN_UID = 'Ndoitjnw9wdbEiouiutuXJJgGZX2';
 
 const LEAGUE_TEAMS = [
@@ -656,19 +653,14 @@ const LEAGUE_TEAMS = [
   { id:'lebron',     name:'LeBron',     division:'Rookies', code:'LBRN6'  },
 ];
 
-// ── PUBLIC VIEW MODE ──────────────────────────────────
-// If URL has ?view=teamId, show public read-only lineup for that team
 const URL_PARAMS  = new URLSearchParams(window.location.search);
-const PUBLIC_VIEW = URL_PARAMS.get('view'); // teamId or null
+const PUBLIC_VIEW = URL_PARAMS.get('view');
 
-// ── STATE ─────────────────────────────────────────────
-window.fbConfigured = false;
-window.fbSave       = null;
-window.currentUser  = null;   // Firebase auth user
-window.currentTeamId = null;  // which team this user belongs to
-window.isLeagueAdmin = false; // true only for ADMIN_UID
-
-// Echo suppression: ignore our own writes for 3s
+window.fbConfigured  = false;
+window.fbSave        = null;
+window.currentUser   = null;
+window.currentTeamId = null;
+window.isLeagueAdmin = false;
 window._lastWriteAt  = 0;
 const ECHO_WINDOW_MS = 3000;
 
@@ -678,64 +670,42 @@ try {
   const auth = firebase.auth();
 
   // ── DATA PATHS ────────────────────────────────────────
-  function teamDataRef(teamId) {
-    return db.ref(`diamond/teams/${teamId}/data`);
-  }
-  function teamProfileRef(teamId) {
-    return db.ref(`diamond/teams/${teamId}/profile`);
-  }
-  function adminIndexRef() {
-    return db.ref('diamond/admin/teamIndex');
-  }
-  function publicGamesRef(teamId) {
-    return db.ref(`diamond/publicGames/${teamId}`);
-  }
-  function inviteCodesRef() {
-    return db.ref('diamond/inviteCodes');
-  }
+  const teamDataRef    = id => db.ref(`diamond/teams/${id}/data`);
+  const teamProfileRef = id => db.ref(`diamond/teams/${id}/profile`);
+  const adminIndexRef  = ()  => db.ref('diamond/admin/teamIndex');
+  const publicGamesRef = id => db.ref(`diamond/publicGames/${id}`);
 
   // ── SAVE TEAM DATA ────────────────────────────────────
   window.fbSave = function(data) {
     if (!window.currentTeamId) return;
     window._lastWriteAt = Date.now();
-    teamDataRef(window.currentTeamId).set(data)
-      .catch(e => console.warn('FB write error:', e));
-    // Also push next game to publicGames for public view
-    updatePublicGame(data);
-    // Update admin index with usage stats
-    updateAdminIndex(data);
+    teamDataRef(window.currentTeamId).set(data).catch(e => console.warn('FB write error:', e));
+    _updatePublicGame(data);
+    _updateAdminIndex(data);
   };
-
   window.fbSaveArchive = function(seasons) {
     if (!window.currentTeamId) return;
-    db.ref(`diamond/teams/${window.currentTeamId}/seasons`).set(seasons)
-      .catch(e => console.warn('FB archive write error:', e));
+    db.ref(`diamond/teams/${window.currentTeamId}/seasons`).set(seasons).catch(() => {});
   };
-
   window.fbListenArchive = function(cb) {
     if (!window.currentTeamId) return;
     db.ref(`diamond/teams/${window.currentTeamId}/seasons`).on('value', snap => cb(snap.val()));
   };
 
-  // Push next game's lineup to the public path (stripped of roster details)
-  function updatePublicGame(data) {
+  function _updatePublicGame(data) {
     if (!window.currentTeamId || !data) return;
     const today = new Date().toISOString().slice(0, 10);
-    const games = data.games || [];
-    const next  = games.filter(g => g.date >= today).sort((a,b) => a.date.localeCompare(b.date))[0];
+    const next  = (data.games||[]).filter(g => g.date >= today).sort((a,b) => a.date.localeCompare(b.date))[0];
     publicGamesRef(window.currentTeamId).set({
-      teamName: LEAGUE_TEAMS.find(t => t.id === window.currentTeamId)?.name || '',
-      updatedAt: Date.now(),
-      nextGame: next ? { date: next.date, innings: next.innings, absent: next.absent||[] } : null,
-      // Include just enough player info for public view (name + number, no preferences)
-      players: (data.players||[]).map(p => ({ id: p.id, name: p.name, number: p.number })),
+      teamName:     LEAGUE_TEAMS.find(t => t.id === window.currentTeamId)?.name || '',
+      updatedAt:    Date.now(),
+      nextGame:     next ? { date: next.date, innings: next.innings, absent: next.absent||[] } : null,
+      players:      (data.players||[]).map(p => ({ id: p.id, name: p.name, number: p.number })),
       battingOrder: data.battingOrder || [],
       nextBatterId: data.nextBatterId || null
     }).catch(() => {});
   }
-
-  // Keep admin index current so league admin can see usage
-  function updateAdminIndex(data) {
+  function _updateAdminIndex(data) {
     if (!window.currentTeamId) return;
     adminIndexRef().child(window.currentTeamId).set({
       teamName:    LEAGUE_TEAMS.find(t => t.id === window.currentTeamId)?.name || '',
@@ -746,223 +716,219 @@ try {
     }).catch(() => {});
   }
 
-  // ── LISTEN FOR REMOTE CHANGES ─────────────────────────
-  let _dataListener = null;
-  function listenTeamData(teamId) {
-    if (_dataListener) _dataListener(); // detach old listener
-    _dataListener = teamDataRef(teamId).on('value', snap => {
+  // ── TEAM DATA LISTENER ────────────────────────────────
+  let _teamDataRef = null;
+  function _listenTeamData(teamId) {
+    // Detach any previous listener cleanly
+    if (_teamDataRef) { _teamDataRef.off('value'); }
+    _teamDataRef = teamDataRef(teamId);
+    _teamDataRef.on('value', snap => {
       if (Date.now() - window._lastWriteAt < ECHO_WINDOW_MS) return;
       const data = snap.val();
       if (window.onFirebaseData) window.onFirebaseData(data);
     });
   }
 
-  // ── AUTH STATE CHANGE ─────────────────────────────────
-  auth.onAuthStateChanged(async user => {
-    window.currentUser = user;
-
-    // Public view doesn't need auth at all — load and return immediately
+  // ── AUTH STATE HANDLER ────────────────────────────────
+  // Called once auth state is known. Separated from onAuthStateChanged
+  // so we can safely wait for the app JS to be ready.
+  async function _handleAuthUser(user) {
+    // ── PUBLIC VIEW: no coach auth needed ───────────────
     if (PUBLIC_VIEW) {
-      loadPublicView(PUBLIC_VIEW);
+      _loadPublicView(PUBLIC_VIEW);
       return;
     }
 
-    if (!user) {
-      showSignInScreen();
+    // ── No user or anonymous user: show sign-in ─────────
+    if (!user || user.isAnonymous) {
+      if (user && user.isAnonymous) {
+        // Sign out stale anonymous session so coach can sign in cleanly
+        await auth.signOut();
+      }
+      if (window.showSignInScreen) window.showSignInScreen();
       return;
     }
 
+    // ── Authenticated Google user ────────────────────────
+    window.currentUser   = user;
     window.isLeagueAdmin = (user.uid === ADMIN_UID);
 
-    const teamId = await findUserTeam(user.uid);
-
+    const teamId = await _findUserTeam(user.uid);
     if (!teamId) {
-      showJoinScreen(user);
+      if (window.showJoinScreen) window.showJoinScreen(user);
       return;
     }
 
     window.currentTeamId = teamId;
     window.fbConfigured  = true;
 
-    listenTeamData(teamId);
-    await maybeMigrateOldData(teamId, user.uid);
+    _listenTeamData(teamId);
+    await _firstTimeSetup(teamId, user);
 
     if (window.onAuthReady) window.onAuthReady(user, teamId);
-    console.log(`✅ Signed in as ${user.email}, team: ${teamId}`);
+    console.log(`✅ ${user.email} → team: ${teamId}`);
+  }
+
+  // ── REGISTER AUTH STATE CHANGE ────────────────────────
+  // Wait up to 1s for app JS to load before processing auth,
+  // so onAuthReady / showSignInScreen are guaranteed to exist.
+  auth.onAuthStateChanged(user => {
+    window.currentUser = user;
+    const delay = window.onAuthReady ? 0 : 500;
+    setTimeout(() => _handleAuthUser(user), delay);
   });
 
   // ── FIND USER'S TEAM ──────────────────────────────────
-  async function findUserTeam(uid) {
-    // Check each team profile for this uid in authorizedUids
-    for (const team of LEAGUE_TEAMS) {
-      const snap = await teamProfileRef(team.id).child('authorizedUids').child(uid).once('value');
-      if (snap.exists()) return team.id;
-    }
-    // Admin can access all — default to their own team (Stumbaugh)
+  async function _findUserTeam(uid) {
     if (uid === ADMIN_UID) return 'stumbaugh';
+    for (const team of LEAGUE_TEAMS) {
+      try {
+        const snap = await teamProfileRef(team.id).child('authorizedUids').child(uid).once('value');
+        if (snap.exists()) return team.id;
+      } catch(e) { /* rules may deny — skip */ }
+    }
     return null;
   }
 
   // ── JOIN TEAM VIA INVITE CODE ─────────────────────────
   window.joinTeamWithCode = async function(code, user) {
-    const normalised = code.trim().toUpperCase();
-    const team = LEAGUE_TEAMS.find(t => t.code === normalised);
+    const team = LEAGUE_TEAMS.find(t => t.code === code.trim().toUpperCase());
     if (!team) return { error: 'Invalid invite code. Check with your league administrator.' };
-
-    // Add uid to team's authorizedUids
     await teamProfileRef(team.id).child('authorizedUids').child(user.uid).set(true);
-
-    // Create/update team profile
-    const profile = {
-      teamName:  team.name,
-      division:  team.division,
-      createdAt: Date.now(),
-      coachEmail: user.email
-    };
-    await teamProfileRef(team.id).update(profile);
-
-    // Create empty data node if it doesn't exist
+    await teamProfileRef(team.id).update({
+      teamName: team.name, division: team.division,
+      createdAt: Date.now(), coachEmail: user.email
+    });
     const dataSnap = await teamDataRef(team.id).once('value');
     if (!dataSnap.exists()) {
       await teamDataRef(team.id).set({ players:[], games:[], battingOrder:[], nextBatterId:null });
     }
-
     return { teamId: team.id, teamName: team.name };
   };
 
-  // ── FIRST-TIME TEAM SETUP (runs for any team on first sign-in) ──────────
-  async function maybeMigrateOldData(teamId, uid) {
-    // Ensure this coach is in the team's authorizedUids (idempotent)
-    await teamProfileRef(teamId).child('authorizedUids').child(uid).set(true);
+  // ── FIRST-TIME TEAM SETUP ─────────────────────────────
+  async function _firstTimeSetup(teamId, user) {
+    // Ensure coach is authorised (idempotent write)
+    await teamProfileRef(teamId).child('authorizedUids').child(user.uid).set(true);
 
-    // Set team profile if not already done
-    const team = LEAGUE_TEAMS.find(t => t.id === teamId);
+    // Write team profile if missing
     const profileSnap = await teamProfileRef(teamId).once('value');
-    if (!profileSnap.exists() || !profileSnap.val()?.teamName) {
+    if (!profileSnap.val()?.teamName) {
+      const team = LEAGUE_TEAMS.find(t => t.id === teamId);
       await teamProfileRef(teamId).update({
-        teamName:   team?.name  || teamId,
-        division:   team?.division || 'Rookies',
-        createdAt:  Date.now(),
-        coachEmail: window.currentUser?.email || ''
+        teamName: team?.name || teamId, division: team?.division || 'Rookies',
+        createdAt: Date.now(), coachEmail: user.email
       });
     }
 
-    // Check if team data already exists
+    // Check if data exists
     const existing = await teamDataRef(teamId).once('value');
     if (existing.exists() && existing.val()?.players?.length > 0) {
-      // Data already there — push to publicGames so public view is current
-      updatePublicGame(existing.val());
-      return;
+      _updatePublicGame(existing.val());
+      return; // already set up
     }
 
-    // For Stumbaugh (admin team), try to migrate from the old flat path
+    // Stumbaugh only: try migrating from legacy flat path
     if (teamId === 'stumbaugh') {
       try {
         const oldSnap = await db.ref('diamond/team').once('value');
         const oldData = oldSnap.val();
         if (oldData?.players?.length > 0) {
-          console.log('Migrating Stumbaugh data from legacy path…');
           await teamDataRef(teamId).set(oldData);
-          updatePublicGame(oldData);
-          updateAdminIndex(oldData);
-          console.log('✅ Migration done —', oldData.players.length, 'players,', oldData.games?.length || 0, 'games');
+          _updatePublicGame(oldData);
+          console.log('✅ Legacy data migrated');
           return;
         }
-      } catch(e) {
-        console.warn('Legacy migration read failed:', e.message);
-      }
+      } catch(e) { console.warn('Legacy read failed:', e.message); }
     }
 
-    // No existing data — initialise empty team
-    const emptyTeamData = { players: [], games: [], battingOrder: [], nextBatterId: null };
-    await teamDataRef(teamId).set(emptyTeamData);
-    updatePublicGame(emptyTeamData);
+    // Initialise empty
+    const empty = { players:[], games:[], battingOrder:[], nextBatterId:null };
+    await teamDataRef(teamId).set(empty);
+    _updatePublicGame(empty);
   }
 
-  // ── GOOGLE SIGN-IN via Google Identity Services ───────
-  // Uses GIS directly instead of Firebase popup/redirect.
-  // GIS runs entirely on google.com — no cross-origin cookie issue.
-  // We get an ID token from GIS, then pass it to Firebase as a credential.
-  // This works on all browsers including Safari on Vercel/non-Firebase-hosted apps.
+  // ── GOOGLE SIGN-IN via GIS ────────────────────────────
   const GOOGLE_CLIENT_ID = '1078601639441-4re49ass38oidgcdhbla12c3hp91qkt3.apps.googleusercontent.com';
 
   window.signInWithGoogle = function() {
     const errEl = document.getElementById('signin-err');
     errEl.textContent = '';
 
-    // Wait for GIS to load (it loads async)
-    if (typeof google === 'undefined' || !google.accounts) {
-      errEl.textContent = 'Google Sign-In is loading, please try again in a moment.';
-      return;
-    }
-
-    const client = google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_CLIENT_ID,
-      scope: 'email profile openid',
-      callback: async (tokenResponse) => {
-        if (tokenResponse.error) {
-          errEl.textContent = 'Google sign-in failed: ' + tokenResponse.error;
-          return;
-        }
-        try {
-          // Exchange the access token for a Firebase credential
-          const credential = firebase.auth.GoogleAuthProvider.credential(null, tokenResponse.access_token);
-          await auth.signInWithCredential(credential);
-          // onAuthStateChanged fires from here and handles the rest
-        } catch(e) {
-          console.warn('Firebase credential error:', e.code, e.message);
-          errEl.textContent = 'Sign-in failed: ' + (e.message || e.code);
-        }
+    // If currently anonymous, sign out first so the credential links cleanly
+    const signIn = () => {
+      if (typeof google === 'undefined' || !google.accounts) {
+        errEl.textContent = 'Google Sign-In is loading — please try again in a moment.';
+        return;
       }
-    });
-    client.requestAccessToken();
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: 'email profile openid',
+        callback: async (resp) => {
+          if (resp.error) { errEl.textContent = 'Google error: ' + resp.error; return; }
+          try {
+            const cred = firebase.auth.GoogleAuthProvider.credential(null, resp.access_token);
+            await auth.signInWithCredential(cred);
+            // onAuthStateChanged fires → _handleAuthUser → onAuthReady
+          } catch(e) {
+            console.warn('Credential error:', e.code, e.message);
+            errEl.textContent = 'Sign-in failed: ' + (e.message || e.code);
+          }
+        }
+      });
+      client.requestAccessToken();
+    };
+
+    // Sign out any stale anonymous session before signing in as Google user
+    if (auth.currentUser?.isAnonymous) {
+      auth.signOut().then(signIn);
+    } else {
+      signIn();
+    }
   };
 
   window.signOut = function() {
-    auth.signOut().then(() => { window.currentTeamId = null; window.fbConfigured = false; });
+    auth.signOut().then(() => {
+      window.currentTeamId = null;
+      window.fbConfigured  = false;
+      window.currentUser   = null;
+      window.isLeagueAdmin = false;
+      if (_teamDataRef) { _teamDataRef.off('value'); _teamDataRef = null; }
+    });
   };
 
-  // ── PUBLIC VIEW LOADER ────────────────────────────────
-  // Public view reads from publicGames — no coach auth needed.
-  // We sign in anonymously so Firebase rules (auth != null) pass,
-  // but anonymous users only have read access to publicGames.
-  function loadPublicView(teamId) {
-    // Show public page immediately while data loads
-    document.querySelector('main').style.display = 'none';
-    document.getElementById('signin-screen').style.display = 'none';
+  // ── PUBLIC VIEW ───────────────────────────────────────
+  // Public view uses anonymous auth to satisfy "auth != null" rules.
+  // Anonymous users can only read publicGames — no team data access.
+  function _loadPublicView(teamId) {
+    document.querySelector('main').style.display            = 'none';
+    document.getElementById('signin-screen').style.display  = 'none';
     document.getElementById('public-view-page').style.display = 'block';
-    document.getElementById('sync-bar').style.display = '';
+    document.getElementById('sync-bar').style.display       = '';
     document.getElementById('view-only-bar').classList.add('visible');
-    document.getElementById('view-only-label').textContent = 'RMLL Rookies — Live Lineup';
     setSyncStatus('off', 'Loading lineup…');
 
-    // Sign in anonymously to satisfy auth != null rule on publicGames
-    auth.signInAnonymously().then(() => {
+    const read = () => {
       publicGamesRef(teamId).on('value', snap => {
-        const d = snap.val();
-        if (window.onPublicData) window.onPublicData(d);
-        setSyncStatus('ok', '☁️ Live lineup');
-      }, err => {
-        document.getElementById('public-view-content').innerHTML =
-          `<div class="empty"><div class="icon">⚠️</div>Unable to load lineup. Check back soon.</div>`;
-        setSyncStatus('err', 'Connection error');
-      });
-    }).catch(() => {
-      // If anonymous auth fails, try reading without auth (in case rules allow it)
-      publicGamesRef(teamId).once('value').then(snap => {
         if (window.onPublicData) window.onPublicData(snap.val());
-      });
-    });
+        setSyncStatus('ok', '☁️ Live lineup');
+      }, () => setSyncStatus('err', 'Connection error'));
+    };
+
+    // Sign in anonymously (if not already) so rules pass
+    if (!auth.currentUser || auth.currentUser.isAnonymous) {
+      auth.signInAnonymously().then(read).catch(read);
+    } else {
+      read();
+    }
   }
 
-  // ── ADMIN: FETCH ALL TEAMS ────────────────────────────
+  // ── LEAGUE ADMIN DATA ─────────────────────────────────
   window.fetchAdminData = function(cb) {
     adminIndexRef().on('value', snap => cb(snap.val()));
   };
 
-  window.fbConfigured = true;
   console.log('✅ Firebase initialised');
-
 } catch(e) {
   console.warn('Firebase init failed:', e);
 }
@@ -2382,21 +2348,17 @@ function deleteSeason(idx) {
 // ═══════════════════════════════════════════════════════
 let isCoach = false; // true once authenticated via Google
 
-function showSignInScreen() {
+window.showSignInScreen = function() {
   document.getElementById('signin-screen').style.display = 'flex';
   document.getElementById('join-screen').style.display   = 'none';
   document.getElementById('public-view-page').style.display = 'none';
   document.querySelector('main').style.display = 'none';
   document.getElementById('sync-bar').style.display = 'none';
-  setSyncStatus('off', 'Not signed in');
-  // Show loading indicator while redirect result resolves (hides automatically via auth state change)
   const loading = document.getElementById('signin-loading');
-  if (loading) loading.style.display = 'block';
-  // Hide loading after 3s if no auth state change (i.e. fresh load, not returning from redirect)
-  setTimeout(() => { if (loading) loading.style.display = 'none'; }, 3000);
+  if (loading) loading.style.display = 'none';
 }
 
-function showJoinScreen(user) {
+window.showJoinScreen = function(user) {
   document.getElementById('signin-screen').style.display = 'none';
   document.getElementById('join-screen').style.display   = 'flex';
   document.querySelector('main').style.display = 'none';
@@ -2618,18 +2580,17 @@ function renderAdminAuthSection() {
 // ═══════════════════════════════════════════════════════
 let currentPage = 'home';
 
-// Public view — no auth needed, Firebase layer handles it
+// Start with everything hidden — auth state change reveals the right screen
+document.querySelector('main').style.display           = 'none';
+document.getElementById('signin-screen').style.display = 'none';
+document.getElementById('join-screen').style.display   = 'none';
+document.getElementById('sync-bar').style.display      = 'none';
+
+// Public view skips auth — show the public page container immediately
 if (PUBLIC_VIEW) {
-  document.querySelector('main').style.display = 'none';
-  document.getElementById('signin-screen').style.display = 'none';
-  document.getElementById('join-screen').style.display   = 'none';
-  document.getElementById('sync-bar').style.display      = '';
+  document.getElementById('public-view-page').style.display = 'block';
+  document.getElementById('sync-bar').style.display         = '';
   setSyncStatus('off', 'Loading lineup…');
-} else {
-  // Normal app — hide everything until Firebase auth resolves
-  document.querySelector('main').style.display           = 'none';
-  document.getElementById('signin-screen').style.display = 'none';
-  document.getElementById('sync-bar').style.display      = 'none';
 }
 </script>
 </body>
