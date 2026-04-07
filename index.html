@@ -751,6 +751,11 @@ try {
     window.currentTeamId = teamId;
     window.fbConfigured  = true;
 
+    // Clear stale localStorage so malformed cached data can't crash renders
+    localStorage.removeItem('diamond_v4');
+    localStorage.removeItem('diamond_v3');
+    localStorage.removeItem('diamond_manager');
+
     // Show app immediately
     if (window.onAuthReady) window.onAuthReady(user, teamId);
 
@@ -2242,8 +2247,9 @@ function renderHistory() {
   if (!(store.games||[]).length) { listEl.innerHTML=''; empty.style.display=''; return; }
   empty.style.display = 'none';
   listEl.innerHTML = [...store.games].sort((a,b) => b.date.localeCompare(a.date)).map(g => {
-    const bs = g.innings.map((inn,i) => {
-      const bp = Object.entries(inn).filter(([k,v])=>v===BENCH).map(([k]) => { const p=store.players.find(pl=>pl.id===parseInt(k)); return p?p.name:'?'; });
+    const innings = Array.isArray(g.innings) ? g.innings : [];
+    const bs = innings.map((inn,i) => {
+      const bp = Object.entries(inn||{}).filter(([k,v])=>v===BENCH).map(([k]) => { const p=store.players.find(pl=>pl.id===parseInt(k)); return p?p.name:'?'; });
       return bp.length ? `Inn ${i+1}: ${bp.join(', ')}` : null;
     }).filter(Boolean);
     const absentNames = (g.absent||[]).map(id => { const p=store.players.find(pl=>pl.id===id); return p?p.name:''; }).filter(Boolean);
@@ -2251,7 +2257,7 @@ function renderHistory() {
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
         <b style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:1px">${fmtDate(g.date)}</b>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-          <span class="game-date-tag">${g.innings.length} innings</span>
+          <span class="game-date-tag">${innings.length} innings</span>
           <button class="btn btn-blue btn-xs" onclick="openCopyModalById(${g.id})">📋 Copy</button>
           <button class="btn btn-ghost btn-xs" onclick="editGame(${g.id})">✏️ Edit</button>
           <button class="btn btn-danger btn-xs" onclick="delGame(${g.id})">Delete</button>
@@ -2425,10 +2431,7 @@ window.onAuthReady = function(user, teamId) {
 
   const teamName = LEAGUE_TEAMS.find(t => t.id === teamId)?.name || teamId;
   setSyncStatus('ok', `☁️ ${teamName} — loading data…`);
-
-  // Render immediately with whatever local store has (may be empty/stale)
-  // The once() load in _handleAuthUser will call renderAll() with fresh Firebase data
-  renderHome(); renderRoster(); renderHistory(); renderStats();
+  // Do NOT render here — onFirebaseData will call renderAll() once data arrives
 };
 
 // ── Public view handler ───────────────────────────────
