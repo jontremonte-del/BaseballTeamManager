@@ -762,10 +762,28 @@ try {
     window.currentTeamId = teamId;
     window.fbConfigured  = true;
 
-    _listenTeamData(teamId);
-    await _firstTimeSetup(teamId, user);
-
+    // Show the app UI immediately (renders with empty/local store for now)
     if (window.onAuthReady) window.onAuthReady(user, teamId);
+
+    // Load team data directly with once() — bypasses listener timing issues
+    try {
+      const snap = await teamDataRef(teamId).once('value');
+      const data = snap.val();
+      if (data) {
+        window._lastWriteAt = 0; // reset so onFirebaseData isn't suppressed
+        if (window.onFirebaseData) window.onFirebaseData(data);
+      }
+    } catch(e) {
+      console.warn('Initial data load failed:', e.message);
+    }
+
+    // Attach live listener — suppress its immediate duplicate callback
+    window._lastWriteAt = Date.now();
+    _listenTeamData(teamId);
+
+    // First-time setup runs in background (idempotent every sign-in)
+    _firstTimeSetup(teamId, user).catch(e => console.warn('Setup:', e.message));
+
     console.log(`✅ ${user.email} → team: ${teamId}`);
   }
 
@@ -2382,9 +2400,8 @@ async function submitInviteCode() {
   }
 }
 
-// Called by Firebase auth layer once signed-in and team is known
+// Called immediately after auth + team are confirmed — shows the app UI
 window.onAuthReady = function(user, teamId) {
-  // Hide auth screens, show app
   document.getElementById('signin-screen').style.display = 'none';
   document.getElementById('join-screen').style.display   = 'none';
   document.getElementById('sync-bar').style.display      = '';
@@ -2394,15 +2411,15 @@ window.onAuthReady = function(user, teamId) {
   document.body.classList.remove('view-only');
   document.getElementById('view-only-bar').classList.remove('visible');
 
-  // Show league admin tab only for admin user
   if (window.isLeagueAdmin) {
     document.getElementById('league-admin-btn').style.display = '';
   }
 
   const teamName = LEAGUE_TEAMS.find(t => t.id === teamId)?.name || teamId;
-  setSyncStatus('ok', `☁️ ${teamName} — signed in as ${user.email}`);
+  setSyncStatus('ok', `☁️ ${teamName} — loading data…`);
 
-  // Initial data load — Firebase listener will fire onFirebaseData shortly
+  // Render immediately with whatever local store has (may be empty/stale)
+  // The once() load in _handleAuthUser will call renderAll() with fresh Firebase data
   renderHome(); renderRoster(); renderHistory(); renderStats();
 };
 
