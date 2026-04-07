@@ -979,17 +979,25 @@ function emptyStore() {
   return { players:[], games:[], battingOrder:[], nextBatterId:null };
 }
 
+// Firebase converts JS arrays to objects when keys have gaps.
+// This converts them back: {0:{...}, 1:{...}} → [{...}, {...}]
+function firebaseToArray(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'object') return Object.values(val);
+  return [];
+}
+
 function loadStore() {
   for (const key of [STORAGE_KEY, 'diamond_v3', 'diamond_manager']) {
     try {
       const d = JSON.parse(localStorage.getItem(key));
-      if (d && Array.isArray(d.players)) {
+      if (d && (Array.isArray(d.players) || (d.players && typeof d.players === 'object'))) {
         if (key !== STORAGE_KEY) localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
-        // Always merge with emptyStore so every property is guaranteed an array
         return {
-          players:      Array.isArray(d.players)      ? d.players      : [],
-          games:        Array.isArray(d.games)         ? d.games        : [],
-          battingOrder: Array.isArray(d.battingOrder)  ? d.battingOrder : [],
+          players:      firebaseToArray(d.players),
+          games:        firebaseToArray(d.games),
+          battingOrder: firebaseToArray(d.battingOrder),
           nextBatterId: d.nextBatterId || null
         };
       }
@@ -1029,20 +1037,26 @@ function persistSeasons() {
 }
 
 // ═══════════════════════════════════════════════════════
-// FIREBASE DATA HANDLER — only called for genuine remote changes
+// FIREBASE DATA HANDLER
 // ═══════════════════════════════════════════════════════
 window.onFirebaseData = function(data) {
   if (!data) {
-    // Nothing in DB — push local store up
     setSyncStatus('ok', '☁️ Firebase ready');
     if (window.fbSave) { window._lastWriteAt = Date.now(); window.fbSave(store); }
     return;
   }
-  // Normalise — always guarantee arrays regardless of what Firebase returns
+  const games = firebaseToArray(data.games).map(g => ({
+    ...g,
+    innings: firebaseToArray(g.innings).map(inn =>
+      // Each inning is a plain object {playerId: position} — preserve as-is
+      (typeof inn === 'object' && !Array.isArray(inn)) ? inn : {}
+    ),
+    absent: firebaseToArray(g.absent)
+  }));
   store = {
-    players:      Array.isArray(data.players)      ? data.players      : [],
-    games:        Array.isArray(data.games)         ? data.games        : [],
-    battingOrder: Array.isArray(data.battingOrder)  ? data.battingOrder : [],
+    players:      firebaseToArray(data.players),
+    games,
+    battingOrder: firebaseToArray(data.battingOrder),
     nextBatterId: data.nextBatterId || null
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
