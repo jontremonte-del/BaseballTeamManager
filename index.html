@@ -787,19 +787,21 @@ try {
       console.warn('New path read error:', e.code);
     }
 
-    // Try legacy path
-    try {
-      const snap = await db.ref('diamond/team').once('value');
-      if (snap.exists() && snap.val()?.players?.length > 0) {
-        const data = snap.val();
-        console.log(`✅ Legacy data found: ${data.players.length} players — migrating…`);
-        await teamDataRef(teamId).set(data);
-        window._lastWriteAt = 0;
-        if (window.onFirebaseData) window.onFirebaseData(data);
-        return;
+    // Try legacy path (Stumbaugh only — migration from pre-auth data structure)
+    if (teamId === 'stumbaugh') {
+      try {
+        const snap = await db.ref('diamond/team').once('value');
+        if (snap.exists() && snap.val()?.players?.length > 0) {
+          const data = snap.val();
+          console.log(`✅ Legacy data found: ${data.players.length} players — migrating…`);
+          await teamDataRef(teamId).set(data);
+          window._lastWriteAt = 0;
+          if (window.onFirebaseData) window.onFirebaseData(data);
+          return;
+        }
+      } catch(e) {
+        console.warn('Legacy path read error:', e.code);
       }
-    } catch(e) {
-      console.warn('Legacy path read error:', e.code);
     }
 
     // Nothing found — initialise empty store
@@ -811,12 +813,23 @@ try {
   }
 
   // ── REGISTER AUTH STATE CHANGE ────────────────────────
-  // Wait up to 1s for app JS to load before processing auth,
-  // so onAuthReady / showSignInScreen are guaranteed to exist.
+  // _appReady is set to true by the app script once it has finished loading.
+  // Auth processing waits for it so onAuthReady / showSignInScreen are defined.
   auth.onAuthStateChanged(user => {
     window.currentUser = user;
-    const delay = window.onAuthReady ? 0 : 500;
-    setTimeout(() => _handleAuthUser(user), delay);
+    if (window._appReady) {
+      _handleAuthUser(user);
+    } else {
+      // Poll until app script is ready (max ~2s)
+      let attempts = 0;
+      const wait = setInterval(() => {
+        attempts++;
+        if (window._appReady || attempts > 20) {
+          clearInterval(wait);
+          _handleAuthUser(user);
+        }
+      }, 100);
+    }
   });
 
   // ── FIND USER'S TEAM ──────────────────────────────────
@@ -1028,9 +1041,9 @@ let curAbsent = []; // array of player IDs absent for the current game being edi
 // PERSIST
 // ═══════════════════════════════════════════════════════
 function persist() {
+  if (!window.currentTeamId) return; // no team = not authenticated as coach
   localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
   clearTimeout(persist._t);
-  // Debounce Firebase write by 800ms to batch rapid changes
   persist._t = setTimeout(() => {
     if (window.fbSave) window.fbSave(store);
   }, 800);
@@ -2614,8 +2627,8 @@ document.getElementById('signin-screen').style.display = 'none';
 document.getElementById('join-screen').style.display   = 'none';
 document.getElementById('sync-bar').style.display      = 'none';
 
-// Public view skips auth — show the public page container immediately
-if (PUBLIC_VIEW) {
+// Signal to Firebase auth handler that app JS is fully loaded
+window._appReady = true;
   document.getElementById('public-view-page').style.display = 'block';
   document.getElementById('sync-bar').style.display         = '';
   setSyncStatus('off', 'Loading lineup…');
