@@ -189,13 +189,6 @@ select option{background:var(--panel2)}
 .copy-text-area{width:100%;min-height:260px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:monospace;font-size:.78rem;padding:12px;resize:vertical;line-height:1.6}
 .modal-footer{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 
-/* Firebase setup */
-.setup-step{display:flex;gap:12px;margin-bottom:14px;align-items:flex-start}
-.step-num{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--accent);width:28px;flex-shrink:0;line-height:1}
-.step-body{flex:1;font-size:.83rem;color:var(--muted);line-height:1.65}
-.step-body b{color:var(--text)}
-.step-body code{background:var(--panel3);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:.77rem;color:var(--accent2);font-family:monospace}
-
 /* HOME PAGE */
 .home-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:4px}
 .home-card{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:18px 20px;cursor:pointer;transition:all .22s;text-decoration:none;display:block}
@@ -254,9 +247,6 @@ select option{background:var(--panel2)}
 .view-only-bar{display:none;background:linear-gradient(90deg,var(--rmll-navy-dark),var(--rmll-blue-dark));border-bottom:1px solid var(--rmll-blue-dark);padding:6px 20px;font-size:.75rem;color:rgba(255,255,255,.6);align-items:center;gap:10px}
 .view-only-bar.visible{display:flex}
 .view-only-bar b{color:var(--rmll-gold)}
-.coach-btn{background:var(--rmll-red);color:#fff;border:none;border-radius:5px;padding:3px 10px;font-size:.7rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;margin-left:auto;white-space:nowrap}
-.coach-btn:hover{background:var(--rmll-red-light)}
-
 /* in read-only mode, disable edit controls */
 body.view-only .edit-control{opacity:.35;pointer-events:none;cursor:not-allowed}
 
@@ -300,7 +290,6 @@ body.view-only .edit-control{opacity:.35;pointer-events:none;cursor:not-allowed}
       Sign in with Google
     </button>
     <div class="auth-err" id="signin-err"></div>
-    <div id="signin-loading" style="display:none;font-size:.82rem;color:var(--muted);margin-top:8px">⏳ Completing sign-in…</div>
     <p style="font-size:.72rem;color:var(--muted);margin-top:12px">Only authorised RMLL coaches can sign in.<br>Contact your league administrator for access.</p>
   </div>
 </div>
@@ -546,28 +535,17 @@ body.view-only .edit-control{opacity:.35;pointer-events:none;cursor:not-allowed}
     <div class="empty" id="archived-empty"><div class="icon">🗃️</div>No archived seasons yet.</div>
   </div>
 
-  <!-- Coach PIN management -->
+  <!-- Coach authentication -->
   <div class="card">
     <div class="section-title" style="font-size:1rem;margin-bottom:10px">🔐 Coach Authentication</div>
-    <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Anyone with the URL can view the app. Coaches need a PIN to add players, edit positions, or change data. The default PIN is <b style="color:var(--accent)">1234</b> — change it below after signing in.</p>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Coaches sign in with Google. Anyone with the URL can view the lineup — only authenticated coaches can edit data.</p>
     <div id="admin-auth-section"></div>
   </div>
 
-  <!-- Firebase status + setup -->
+  <!-- Firebase status -->
   <div class="card">
     <div class="section-title" style="font-size:1rem;margin-bottom:10px">🔥 Firebase Status</div>
-    <div id="admin-firebase-status" style="font-size:.85rem;margin-bottom:14px"></div>
-    <details style="font-size:.82rem;color:var(--muted)">
-      <summary style="cursor:pointer;color:var(--accent2);font-weight:600;margin-bottom:10px">Show setup instructions</summary>
-      <div style="margin-top:12px">
-        <div class="setup-step"><span class="step-num">1</span><div class="step-body"><b>Create a free Firebase project</b><br>Go to <b>console.firebase.google.com</b> → <b>Add project</b> → name it <b>diamond-manager</b> → Create.</div></div>
-        <div class="setup-step"><span class="step-num">2</span><div class="step-body"><b>Add a Web App</b><br>Click the <b>&lt;/&gt;</b> web icon → nickname <b>diamond-manager-web</b> → Register. Copy the <code>firebaseConfig</code> object shown.</div></div>
-        <div class="setup-step"><span class="step-num">3</span><div class="step-body"><b>Enable Realtime Database</b><br>Left sidebar → <b>Build → Realtime Database</b> → Create database → <b>Start in test mode</b> → Enable. Copy the database URL.</div></div>
-        <div class="setup-step"><span class="step-num">4</span><div class="step-body"><b>Paste config into code</b><br>Open <code>index.html</code> on GitHub. Find <code>FIREBASE_CONFIG</code> near the top and replace each placeholder value.</div></div>
-        <div class="setup-step"><span class="step-num">5</span><div class="step-body"><b>Commit &amp; deploy</b><br>Commit in GitHub → Vercel redeploys → sync bar turns <b style="color:var(--accent3)">green</b>.</div></div>
-        <div class="alert alert-warn" style="margin-top:4px">⚠️ Test mode expires in 30 days. Go to Realtime Database → Rules and set <code>"read": true, "write": true</code> before expiry.</div>
-      </div>
-    </details>
+    <div id="admin-firebase-status" style="font-size:.85rem;"></div>
   </div>
 </div>
 
@@ -2399,8 +2377,6 @@ window.showSignInScreen = function() {
   document.getElementById('public-view-page').style.display = 'none';
   document.querySelector('main').style.display = 'none';
   document.getElementById('sync-bar').style.display = 'none';
-  const loading = document.getElementById('signin-loading');
-  if (loading) loading.style.display = 'none';
 }
 
 window.showJoinScreen = function(user) {
@@ -2629,10 +2605,6 @@ document.getElementById('sync-bar').style.display      = 'none';
 
 // Signal to Firebase auth handler that app JS is fully loaded
 window._appReady = true;
-  document.getElementById('public-view-page').style.display = 'block';
-  document.getElementById('sync-bar').style.display         = '';
-  setSyncStatus('off', 'Loading lineup…');
-}
 </script>
 </body>
 </html>
